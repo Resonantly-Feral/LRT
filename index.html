@@ -378,9 +378,14 @@ function mesh(geo, mat, part, parent, x, y, z){
 const box = (w,h,d) => new T.BoxGeometry(w,h,d);
 const cyl = (r,h,n) => new T.CylinderGeometry(r,r,h,n||16);
 const DS = T.DoubleSide;
+function bandTex(){ const c = document.createElement('canvas'); c.width = 4; c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#f2f4f6'; g.fillRect(0,0,4,128); g.fillStyle = '#1f33a8'; g.fillRect(0,0,4,77); g.fillStyle = '#d3202f'; g.fillRect(0,82,4,8); return new T.CanvasTexture(c); }
+function textTex(lines, w, h, bg, fg, font){ const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  if (bg){ g.fillStyle = bg; g.fillRect(0,0,w,h); } g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  lines.forEach((l, k) => { g.font = l[1] || font; g.fillText(l[0], w/2, h*(k+.5)/lines.length + 2, w-12); }); return new T.CanvasTexture(c); }
 const mat = {
   body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x1f33a8, {roughness:.4}), red: M('body', 0xd3202f),
-  glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xdfe5ea, {roughness:.4}),
+  glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xffffff, {roughness:.4, map:bandTex()}),
   nose: M('nose', 0xf4f6f8, {roughness:.45}), screen: M('nose', 0x101820, {roughness:.15, metalness:.4}),
   floor: M('interior', 0x5b6068), seat: M('interior', 0xd8352a), pole: M('interior', 0xc9ced3, {metalness:.8, roughness:.3}),
   bogie: M('bogie', 0x3a424b, {metalness:.4}), wheel: M('wheels', 0x9aa4ad, {metalness:.8, roughness:.3}), hub: M('wheels', 0x2b3138),
@@ -430,16 +435,17 @@ for (let u0=0; u0<LT-1; u0+=CH){
   const u1 = Math.min(LT, u0+CH), cm = cAt((u0+u1)/2), lo = Math.min(cAt(u0).y, cAt(u1).y);
   const under = lo < -.6, box_ = under && ST.some((s, k) => s.lv === 'U' && Math.abs(stU[k] - (u0+u1)/2) < 80);
   if (!under || box_) sweepM(u0, u1, [{prof:deckProf}], mat.deck, 'viaduct');
+  const outer = cm.w > 3.9, gap = cm.w > 3.2 && cm.w < 4.6;   // a short dead gap where the rails change sides
   const rl = [], rc = [], pw = [];
   for (const sd of [-1,1]){
     for (const r of RAILS) rl.push({lat:side(sd), prof:r});
     rc.push({lat:side(sd), prof:REACT});
-    const a = sd > 0 ? -1.25 : 1.18;   // power rails sit on the inner side, between the tracks
+    const a = (sd > 0) !== outer ? -1.25 : 1.18;   // inner side beside side platforms, outer side beside island platforms
     pw.push({lat:side(sd), prof:rect(a, a+.07, .22, .30)}, {lat:side(sd), prof:rect(a, a+.07, .40, .48)});
   }
-  sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); sweepM(u0, u1, pw, mat.power, 'power');
+  sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); if (!gap) sweepM(u0, u1, pw, mat.power, 'power');
   const um = (u0+u1)/2, nearStn = stU.some(s => Math.abs(s - um) < 75);
-  if (nearStn) sweepM(u0, u1, [-1,1].map(sd => ({lat:side(sd), prof:sd > 0 ? rect(-1.42,-1.12,.52,.58) : rect(1.12,1.42,.52,.58)})), mat.cover, 'power');
+  if (nearStn && !gap) sweepM(u0, u1, [-1,1].map(sd => ({lat:side(sd), prof:(sd > 0) !== outer ? rect(-1.42,-1.12,.52,.58) : rect(1.12,1.42,.52,.58)})), mat.cover, 'power');
   if (lo > -.6 && cm.w < 2.4 && cAt(u0).w < 2.4 && cAt(u1).w < 2.4) sweepM(u0, u1, [{prof:rect(-.5,.5,.78,.9)}, {prof:rect(-.06,.06,0,.78)}], mat.walk, 'walkway');
   if (under) sweepM(u0, u1, box_ ? [{prof:tunProf}] : [-1,1].map(sd => ({lat:side(sd), prof:TUBE})), mat.tunnel, 'tunnel');
   if (cm.y > 4){
@@ -506,6 +512,11 @@ function ledTex(text){   // red dot-matrix departure board, as on the real platf
   return new T.MeshBasicMaterial({map:new T.CanvasTexture(c)});
 }
 const LED = {'-1':ledTex('ke PUTRA HEIGHTS'), '1':ledTex('ke GOMBAK')};   // the -1 side track runs towards Putra Heights
+const dangerMat = new T.MeshBasicMaterial({map:textTex([['DILARANG MELINTAS TREK', '900 30px Arial'], ['DO NOT CROSS TRACK', '700 22px Arial'], ['BAHAYA  DANGER', '900 30px Arial'], ['TREK VOLTAN TINGGI', '900 28px Arial'], ['HIGH VOLTAGE TRACK', '700 22px Arial']], 512, 256, '#f2c200', '#1a1a1a', '')});
+function dangerSign(g){   // on the fence between the tracks at side-platform stations
+  mesh(box(3.3,1.7,.06), mat.col, 'station', g, 12, 1.85, 0);
+  for (const s of [-1,1]){ const m = mesh(new T.PlaneGeometry(3.2,1.6), dangerMat, null, g, 12, 1.85, s*.04); if (s < 0) m.rotation.y = PI; }
+}
 function stationKit(g, w, lv, zBoard){
   for (const sd of [-1,1]){
     for (const o of [-.47,.47]) mesh(box(PL+8,.07,.36), mat.panel, 'panels', g, 0, .05, sd*w + o);
@@ -532,7 +543,7 @@ const stations = ST.map((d, i) => {
       if (c.y > 2) for (const x of [-24,24]) mesh(box(1.5,c.y,1.5), mat.pier, 'station', g, x, -c.y/2+.03, 0);
     }
     stationKit(g, w, lv, w-2.4);
-  } else { stationKit(g, w, lv, w+2.4);
+  } else { stationKit(g, w, lv, w+2.4); dangerSign(g);
     mesh(box(PL,.18,2*(w+6.9)), mat.roof, 'station', g, 0, 5.75, 0);
     for (let x=-36; x<=36; x+=12) mesh(box(.3,.3,2*(w+6.9)), mat.truss, 'station', g, x, 5.5, 0);
     for (const sd of [-1,1]){   // side platforms outside the tracks
@@ -547,6 +558,13 @@ const stations = ST.map((d, i) => {
   } }
   return {i, name:d.n, code:kj(i), lv, pl:d.pl, x:d.x, u:stU[i], g, c, label:addLabel(d.n, ''), pos:new T.Vector3(c.x, c.y + (lv === 'U' ? 6.4 : 9.4), c.z), term:i === 0 || i === NST-1};
 });
+{ // yellow AWAS / CAUTION patches on the platform at each door, one instanced mesh for the whole line
+  const am = new T.MeshBasicMaterial({map:textTex([['AWAS', '900 46px Arial'], ['CAUTION', '900 40px Arial']], 256, 128, '#f2c200', '#1a1a1a', '')});
+  const im = new T.InstancedMesh(new T.PlaneGeometry(1.5,.85), am, stations.length*24), o = new T.Object3D(); o.rotation.order = 'YXZ'; let k = 0;
+  stations.forEach(st => { const c = st.c, w = HALFW[st.pl];
+    for (const sd of [-1,1]) for (let i=0; i<4; i++) for (const dx of [-4.9,0,4.9]){ const x = (1.5-i)*16.2 + dx, lat = sd*(st.pl === 'I' ? w-2.1 : w+2.1);
+      o.position.set(c.x + c.tx*x + c.nx*lat, c.y + 1.062, c.z + c.tz*x + c.nz*lat); o.rotation.set(-PI/2, -c.th + (sd*(st.pl === 'I' ? -1 : 1) > 0 ? 0 : PI), 0); o.updateMatrix(); im.setMatrixAt(k++, o.matrix); } });
+  im.frustumCulled = false; scene.add(im); }
 // every stop a train makes on one round trip: down the line, then back
 const stops = [];
 for (let i=0; i<NST; i++) stops.push({q:stU[i]-uA, st:stations[i], term:i === 0 || i === NST-1});
@@ -608,7 +626,7 @@ function buildBogie(){
   }
   return {g, axles, bars};
 }
-function buildCar(idx, lights, n){
+function buildCar(idx, lights, n, numMat){
   n = n || NCAR; const n4 = n === NCAR;
   const g = new T.Group(), low = new T.Group(), shell = new T.Group(), roof = new T.Group();
   g.rotation.order = 'YZX'; g.add(low, shell); shell.add(roof);
@@ -636,6 +654,7 @@ function buildCar(idx, lights, n){
     mesh(noseGeo(.9,3.3,1.31,0), mat.nose, 'nose', n, 0, 2.1, 0);
     if (n4) mesh(noseGeo(1.8,3.18,1.2,.015), mat.blue, 'nose', n, 0, 2.49, 0);   // the newer four-car trains have a blue surround
     mesh(noseGeo(1.95,3.05,1.12,.03), mat.screen, 'nose', n, 0, 2.5, 0);
+    if (numMat){ const m = mesh(new T.PlaneGeometry(.66,.28), numMat, null, n, .07, 2.86, 0); m.rotation.set(-.367, PI/2, 0, 'YXZ'); }
     for (const z of [-.8,.8]) mesh(box(.06,.14,.32), lights[idx ? 1 : 0], null, n, .62, 1.3, z);
   }
   const bogies = [buildBogie(), buildBogie()]; g.add(bogies[0].g, bogies[1].g);
@@ -646,7 +665,8 @@ const N_ENV = 36;
 function buildTrain(i, stopIdx){
   const n = i % 6 === 3 ? 2 : NCAR;   // every sixth train is an older two-car set
   const lights = [new T.MeshBasicMaterial(), new T.MeshBasicMaterial()];
-  const cars = []; for (let c=0; c<n; c++) cars.push(buildCar(c, lights, n));
+  const cars = []; const numMat = new T.MeshBasicMaterial({map:textTex([[String((n === 2 ? 121 : 161) + i), '700 54px Arial']], 160, 64, null, '#f4f6f8', ''), transparent:true});
+  for (let c=0; c<n; c++) cars.push(buildCar(c, lights, n, numMat));
   const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.Float32BufferAttribute(new Float32Array((N_ENV+1)*6), 3));
   const ix = []; for (let k=0; k<N_ENV; k++){ const a=k*2; ix.push(a,a+1,a+2, a+1,a+3,a+2); } eg.setIndex(ix);
   const env = new T.Mesh(eg, new T.MeshBasicMaterial({color:0x22b8ff, transparent:true, opacity:.5, side:DS, depthWrite:false}));
@@ -944,7 +964,7 @@ const INFO = {
   shoes:{g:'train', name:'Collector shoes', what:'Sprung metal pads that reach sideways from the bogie and slide along the power rails, picking up electricity as the train moves.',
     more:'There are shoes on both sides of every bogie, so the train can pick up power whichever side the rail is on and coast across short gaps.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
   power:{g:'track', name:'Power rails', what:'Electrified rails beside the track, fed with 750 volts of direct current. Power arrives from the national grid at Jelatek and Kerinchi and is stepped down through about 15 substations along the line. The rail is covered, and nobody walks on the track.',
-    more:'There are two of them, one above the other, held on white insulators: one carries current out to the train and the other carries it back. Near stations they sit under a yellow cover. The model has them on the inner side throughout; on the real line they swap sides to stay away from the platform.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
+    more:'There are two of them, one above the other, held on white insulators: one carries current out to the train and the other carries it back. Near stations they sit under a yellow cover. They are kept on the side away from the platform, so they swap sides between stations with side platforms and stations with an island. Where they swap there is a short gap, and the train keeps its power through the shoes further along.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
   reaction:{g:'track', name:'Reaction rail', what:'The wide, flat aluminium plate lying between the running rails. It is the other half of the motor, and it never moves.',
     more:'The magnetic wave from the slab on the train grips this strip from just above and pulls against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
   rails:{g:'track', name:'Running rails', bm:'Landasan', what:'Two steel rails, 1,435 millimetres apart. That is standard gauge, the same spacing most metros in the world use.',
@@ -1093,7 +1113,10 @@ $('snd').addEventListener('click', () => {
   if (soundOn){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} chime(true); }
   else try { speechSynthesis.cancel(); } catch (e) {}
 });
+let eggTaps = 0, eggAt = 0, eggUntil = 0;
+$('led').addEventListener('click', () => { const now = performance.now(); eggTaps = now - eggAt < 1500 ? eggTaps + 1 : 1; eggAt = now; if (eggTaps >= 5){ eggTaps = 0; eggUntil = now + 7000; } });
 function updateLed(t){
+  if (eggUntil > performance.now()){ setText($('led'), 'Ubuntu 14.04.2 LTS oem tty1 · ata2.00: failed command: READ DMA'); return; }
   const stop = stops[t.next], name = stop.st.name, at = t.state === 'dwell' || t.door > .02;
   const msg = at ? name + (stop.term && t.state === 'dwell' ? ' · Last stop' : stop.st.x ? ' · Change here for ' + stop.st.x : '') : 'Stesen berikutnya · Next station: ' + name;
   setText($('led'), msg);
