@@ -169,7 +169,7 @@ ol.line li.under button{border-left-style:dashed}
       <div class="partlist" id="pl-train"></div>
       <h3>On the track</h3>
       <div class="partlist" id="pl-track"></div>
-      <p class="note">A model of the Kelana Jaya Line (Line 5): all 37 stations in order, four-car trains at their real length and width, tunnels under the city centre. Distances between stations are squashed to about a quarter of a kilometre so a ride takes minutes, and the route's bends are a rough sketch of the real map, not a survey. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
+      <p class="note">A model of the Kelana Jaya Line (Line 5): all 37 stations in order, four-car trains at their real length and width, tunnels under the city centre. Every station sits at its real map position, with the whole map shrunk to about a third so a ride takes minutes. Between stations the track is a smooth curve joining them, not the surveyed alignment. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
       <p class="note">Checked against: <a href="https://en.wikipedia.org/wiki/Kelana_Jaya_Line" target="_blank" rel="noopener">Wikipedia, Kelana Jaya Line</a> · <a href="https://en.wikipedia.org/wiki/Innovia_Metro" target="_blank" rel="noopener">Wikipedia, Innovia Metro</a> · <a href="https://www.railway-technology.com/projects/kuala-lumpur-driverless-metro/" target="_blank" rel="noopener">Railway Technology</a> · <a href="https://myrapid.com.my/bus-train/rapid-kl/kelana-jaya-line/" target="_blank" rel="noopener">MyRapid</a></p>
     </div>
 
@@ -243,46 +243,88 @@ const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
 const smooth = (a,b,x) => { const t = clamp((x-a)/(b-a), 0, 1); return t*t*(3-2*t); };
 
 /* ---------- the real line: 37 stations in order ----------
-   [name, rough compass bearing of the track here, level, interchange]
-   level: E elevated, G ground level, U underground. Bearings sketch the real map; they are not surveyed. */
+   Positions, levels and platform types are from Wikipedia's Kelana Jaya Line article.
+   lv: E elevated, G ground level, U underground. pl: I island platform, S side platforms. */
 const ST = [
-  ['Gombak',200,'E'],['Taman Melati',200,'E'],['Wangsa Maju',200,'E'],['Sri Rampai',200,'G'],['Setiawangsa',200,'E'],
-  ['Jelatek',205,'E'],["Dato' Keramat",235,'E'],['Damai',235,'E'],['Ampang Park',240,'U','MRT Putrajaya Line'],['KLCC',265,'U'],
-  ['Kampung Baru',285,'U'],['Dang Wangi',215,'U'],['Masjid Jamek',195,'U','Ampang and Sri Petaling Lines'],['Pasar Seni',180,'E','MRT Kajang Line'],
-  ['KL Sentral',220,'E','KTM, airport trains, Monorail'],['Bangsar',245,'E'],['Abdullah Hukum',185,'E','KTM'],['Kerinchi',225,'E'],['Universiti',260,'E'],
-  ['Taman Jaya',235,'E'],['Asia Jaya',265,'E'],['Taman Paramount',300,'E'],['Taman Bahagia',300,'E'],['Kelana Jaya',250,'E'],
-  ['Lembah Subang',310,'E'],['Ara Damansara',270,'E'],['Glenmarie',215,'E'],['Subang Jaya',190,'E','KTM'],['SS 15',175,'E'],['SS 18',200,'E'],
-  ['USJ 7',180,'E'],['Taipan',205,'E'],['Wawasan',185,'E'],['USJ 21',170,'E'],['Alam Megah',220,'E'],['Subang Alam',190,'E'],
-  ['Putra Heights',150,'E','Sri Petaling Line'],
+  {n:"Gombak", lon:101.724424, lat:3.231215, lv:'E', pl:'I'},
+  {n:"Taman Melati", lon:101.721889, lat:3.219527, lv:'E', pl:'S'},
+  {n:"Wangsa Maju", lon:101.731856, lat:3.205802, lv:'E', pl:'I'},
+  {n:"Sri Rampai", lon:101.737290, lat:3.199147, lv:'G', pl:'S'},
+  {n:"Setiawangsa", lon:101.735885, lat:3.175719, lv:'E', pl:'I'},
+  {n:"Jelatek", lon:101.735295, lat:3.167284, lv:'E', pl:'S'},
+  {n:"Dato' Keramat", lon:101.731848, lat:3.165056, lv:'E', pl:'S'},
+  {n:"Damai", lon:101.724384, lat:3.164485, lv:'E', pl:'I'},
+  {n:"Ampang Park", lon:101.719005, lat:3.160056, lv:'U', pl:'I', x:"MRT Putrajaya Line"},
+  {n:"KLCC", lon:101.713366, lat:3.159247, lv:'U', pl:'I'},
+  {n:"Kampung Baru", lon:101.706600, lat:3.161293, lv:'U', pl:'I'},
+  {n:"Dang Wangi", lon:101.701928, lat:3.156866, lv:'U', pl:'I', x:"KL Monorail"},
+  {n:"Masjid Jamek", lon:101.696993, lat:3.149970, lv:'U', pl:'I', x:"Ampang and Sri Petaling Lines"},
+  {n:"Pasar Seni", lon:101.695311, lat:3.142481, lv:'E', pl:'I', x:"MRT Kajang Line"},
+  {n:"KL Sentral", lon:101.686513, lat:3.134112, lv:'E', pl:'S', x:"KTM, airport trains, Monorail, MRT Kajang Line"},
+  {n:"Bangsar", lon:101.679074, lat:3.127558, lv:'E', pl:'S'},
+  {n:"Abdullah Hukum", lon:101.672909, lat:3.118685, lv:'E', pl:'S', x:"KTM"},
+  {n:"Kerinchi", lon:101.668489, lat:3.115482, lv:'E', pl:'S'},
+  {n:"Universiti", lon:101.661703, lat:3.114542, lv:'E', pl:'I'},
+  {n:"Taman Jaya", lon:101.645296, lat:3.104043, lv:'E', pl:'S'},
+  {n:"Asia Jaya", lon:101.637735, lat:3.104357, lv:'E', pl:'I'},
+  {n:"Taman Paramount", lon:101.623176, lat:3.104694, lv:'E', pl:'S'},
+  {n:"Taman Bahagia", lon:101.612712, lat:3.110696, lv:'E', pl:'S'},
+  {n:"Kelana Jaya", lon:101.604497, lat:3.112456, lv:'E', pl:'I'},
+  {n:"Lembah Subang", lon:101.591316, lat:3.111974, lv:'E', pl:'S'},
+  {n:"Ara Damansara", lon:101.586682, lat:3.108457, lv:'E', pl:'I'},
+  {n:"Glenmarie", lon:101.590434, lat:3.095915, lv:'E', pl:'I', x:"Shah Alam Line"},
+  {n:"Subang Jaya", lon:101.587280, lat:3.084880, lv:'E', pl:'I', x:"KTM"},
+  {n:"SS 15", lon:101.586164, lat:3.075720, lv:'E', pl:'I'},
+  {n:"SS 18", lon:101.586177, lat:3.067059, lv:'E', pl:'I'},
+  {n:"USJ 7", lon:101.591995, lat:3.054815, lv:'E', pl:'I', x:"BRT Sunway Line"},
+  {n:"Taipan", lon:101.590150, lat:3.047831, lv:'E', pl:'S'},
+  {n:"Wawasan", lon:101.588103, lat:3.035068, lv:'E', pl:'S'},
+  {n:"USJ 21", lon:101.581808, lat:3.029732, lv:'E', pl:'S'},
+  {n:"Alam Megah", lon:101.572093, lat:3.023044, lv:'E', pl:'I'},
+  {n:"Subang Alam", lon:101.572117, lat:3.009603, lv:'E', pl:'I'},
+  {n:"Putra Heights", lon:101.575604, lat:2.996144, lv:'E', pl:'I', x:"Sri Petaling Line"},
 ];
-const NST = ST.length, D = 260, TAIL = 75, ds = 2;
-const LEVEL = {E:8.5, G:.45, U:-7}, HALFW = {E:2.25, G:2.25, U:5.6};
+const NST = ST.length, SC = .35, STUB = 42, TAIL = 75, ds = 2;   // SC: the map is shrunk to about a third
+const LEVEL = {E:8.5, G:.45, U:-7}, HALFW = {I:5.6, S:2.25};
 const LVNAME = {E:'Elevated', G:'Ground level', U:'Underground'};
 
-// centreline: straight legs through each station, joined by circular curves
-const segs = [{len:TAIL, k:0}], stU = []; let acc = TAIL;
-(() => { let tPrev = 0;
+// centreline: straight through each station at its real position, smooth curves in between
+const stU = [];
+let LT, NS, X, Z, TH, K, YA, WA;
+(() => {
+  const lat0 = ST[0].lat, lon0 = ST[0].lon, kx = Math.cos(3.15*PI/180)*111320*SC, kz = 110574*SC;
+  const Pt = ST.map(s => [(s.lon-lon0)*kx, -(s.lat-lat0)*kz]);
+  const tan = Pt.map((p, i) => { const a = Pt[Math.max(0,i-1)], b = Pt[Math.min(NST-1,i+1)], l = Math.hypot(b[0]-a[0], b[1]-a[1]); return [(b[0]-a[0])/l, (b[1]-a[1])/l]; });
+  const dense = [], dl = [0]; let len = 0;
+  const add = p => { if (dense.length){ const q = dense[dense.length-1]; len += Math.hypot(p[0]-q[0], p[1]-q[1]); dl.push(len); } dense.push(p); };
+  const line = (a, b) => { const n = Math.max(1, Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1])/.5)); for (let k=1; k<=n; k++) add([a[0]+(b[0]-a[0])*k/n, a[1]+(b[1]-a[1])*k/n]); };
+  const off = (i, d) => [Pt[i][0]+tan[i][0]*d, Pt[i][1]+tan[i][1]*d];
+  add(off(0, -STUB-TAIL));
   for (let i=0; i<NST; i++){
-    let t = 0, r = 0, al = 0;
-    if (i < NST-1){ al = (ST[i+1][1]-ST[i][1])*PI/180; const h = Math.abs(al)/2;
-      if (h > 1e-3){ r = Math.min(400, (D/2-48)/Math.tan(h)); t = r*Math.tan(h); } }
-    segs.push({len:D/2-tPrev, k:0}); acc += D/2-tPrev; stU[i] = acc;
-    segs.push({len:D/2-t, k:0}); acc += D/2-t;
-    if (t){ segs.push({len:r*Math.abs(al), k:Math.sign(al)/r}); acc += r*Math.abs(al); }
-    tPrev = t;
+    line(dense[dense.length-1], Pt[i]); stU[i] = len; line(Pt[i], off(i, STUB));
+    if (i < NST-1){
+      const a = off(i, STUB), b = off(i+1, -STUB), m = Math.hypot(b[0]-a[0], b[1]-a[1]), n = Math.ceil(m/.5);
+      for (let k=1; k<=n; k++){ const t = k/n, t2 = t*t, t3 = t2*t, h00 = 2*t3-3*t2+1, h10 = t3-2*t2+t, h01 = -2*t3+3*t2, h11 = t3-t2;
+        add([h00*a[0]+h10*m*tan[i][0]+h01*b[0]+h11*m*tan[i+1][0], h00*a[1]+h10*m*tan[i][1]+h01*b[1]+h11*m*tan[i+1][1]]); }
+    }
   }
-  segs.push({len:TAIL, k:0}); acc += TAIL; })();
-const LT = acc, NS = Math.floor(LT/ds) + 1;
-const X = new Float32Array(NS), Z = new Float32Array(NS), TH = new Float32Array(NS), K = new Float32Array(NS), YA = new Float32Array(NS), WA = new Float32Array(NS);
-(() => { let x = 0, z = 0, th = (ST[0][1]-90)*PI/180, si = 0, sEnd = segs[0].len, sti = 0;
+  line(dense[dense.length-1], off(NST-1, STUB+TAIL));
+  LT = len; NS = Math.floor(LT/ds) + 1;
+  X = new Float32Array(NS); Z = new Float32Array(NS); TH = new Float32Array(NS); K = new Float32Array(NS); YA = new Float32Array(NS); WA = new Float32Array(NS);
+  let di = 0, sti = 0;
   for (let j=0; j<NS; j++){
-    const s = j*ds; while (s >= sEnd && si < segs.length-1){ si++; sEnd += segs[si].len; }
-    const k = segs[si].k; X[j] = x; Z[j] = z; TH[j] = th; K[j] = k;
+    const s = j*ds; while (di < dl.length-2 && dl[di+1] < s) di++;
+    const a = (s-dl[di])/Math.max(1e-6, dl[di+1]-dl[di]); X[j] = dense[di][0]+(dense[di+1][0]-dense[di][0])*a; Z[j] = dense[di][1]+(dense[di+1][1]-dense[di][1])*a;
     while (sti < NST-2 && s > stU[sti+1]) sti++;
-    const a = smooth(stU[sti]+55, stU[sti+1]-55, s), l0 = ST[sti][2], l1 = ST[sti+1][2];
-    YA[j] = LEVEL[l0] + (LEVEL[l1]-LEVEL[l0])*a; WA[j] = HALFW[l0] + (HALFW[l1]-HALFW[l0])*a;
-    x += Math.cos(th + k*ds/2)*ds; z += Math.sin(th + k*ds/2)*ds; th += k*ds;
-  } })();
+    const b = smooth(stU[sti]+45, stU[sti+1]-45, s), s0 = ST[sti], s1 = ST[sti+1];
+    YA[j] = LEVEL[s0.lv] + (LEVEL[s1.lv]-LEVEL[s0.lv])*b; WA[j] = HALFW[s0.pl] + (HALFW[s1.pl]-HALFW[s0.pl])*b;
+  }
+  let prev = 0;
+  for (let j=0; j<NS; j++){ const a = Math.max(0,j-1), b = Math.min(NS-1,j+1); let th = Math.atan2(Z[b]-Z[a], X[b]-X[a]);
+    if (j){ while (th-prev > PI) th -= 2*PI; while (th-prev < -PI) th += 2*PI; } TH[j] = prev = th; }
+  const raw = new Float32Array(NS); for (let j=1; j<NS-1; j++) raw[j] = (TH[j+1]-TH[j-1])/(2*ds);
+  for (let j=0; j<NS; j++){ let s = 0, n = 0; for (let k=-3; k<=3; k++) if (j+k >= 0 && j+k < NS){ s += raw[j+k]; n++; } K[j] = Math.abs(s/n) < 1/1500 ? 0 : s/n; }
+})();
 function cAt(u){
   const f = clamp(u/ds, 0, NS-1.001), i = f|0, a = f-i, th = TH[i] + (TH[i+1]-TH[i])*a, c = Math.cos(th), s = Math.sin(th);
   return {x:X[i]+(X[i+1]-X[i])*a, z:Z[i]+(Z[i+1]-Z[i])*a, y:YA[i]+(YA[i+1]-YA[i])*a, w:WA[i]+(WA[i+1]-WA[i])*a, th, tx:c, tz:s, nx:-s, nz:c};
@@ -390,12 +432,12 @@ function winTex(lit){
 const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex(true), emissive:0xffffff, emissiveIntensity:0, roughness:.8});
 (() => {
   let seed = 42; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
-  const N = 1000, im = new T.InstancedMesh(box(1,1,1), bldMat, N), o = new T.Object3D(), col = new T.Color(); let i = 0, tries = 0;
+  const N = 1500, im = new T.InstancedMesh(box(1,1,1), bldMat, N), o = new T.Object3D(), col = new T.Color(); let i = 0, tries = 0;
   while (i < N && tries++ < 20000){
     const u = rnd()*LT, c = cAt(u), l = (rnd() < .5 ? -1 : 1)*(64 + rnd()*230), x = c.x + c.nx*l, z = c.z + c.nz*l;
     let ok = true; for (let j=0; j<NS && ok; j+=6){ const dx = X[j]-x, dz = Z[j]-z; if (dx*dx+dz*dz < 3200) ok = false; }
     if (!ok) continue;
-    const city = Math.exp(-Math.pow((u-stU[11])/1000, 2));
+    const city = Math.exp(-Math.pow((u-stU[11])/1500, 2));
     const w = 12+rnd()*16, dp = 12+rnd()*16, h = (8 + Math.pow(rnd(),2.2)*45)*(1 + 2.4*city);
     o.position.set(x, h/2, z); o.rotation.y = -c.th; o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
     im.setColorAt(i, col.setHSL(.58, .08, .62+rnd()*.3)); i++;
@@ -421,16 +463,23 @@ function signTex(name, code){
 }
 const PL = 76;
 const stations = ST.map((d, i) => {
-  const c = cAt(stU[i]), lv = d[2], w = HALFW[lv], g = new T.Group(); g.position.set(c.x, c.y, c.z); g.rotation.y = -c.th; scene.add(g);
-  const sm = new T.MeshBasicMaterial({map:signTex(d[0], kj(i))});
-  if (lv === 'U'){   // island platform between the tracks, sealed by platform screen doors
-    mesh(box(PL,1,2*(w-1.45)), mat.plat, 'station', g, 0, .53, 0);
+  const c = cAt(stU[i]), lv = d.lv, w = HALFW[d.pl], g = new T.Group(); g.position.set(c.x, c.y, c.z); g.rotation.y = -c.th; scene.add(g);
+  const sm = new T.MeshBasicMaterial({map:signTex(d.n, kj(i))});
+  if (d.pl === 'I'){   // island platform between the tracks
+    const pw = 2*(w-1.45);
+    mesh(box(PL,1,pw), mat.plat, 'station', g, 0, .53, 0);
     for (const sd of [-1,1]){
-      mesh(box(PL,2.7,.08), mat.psd, 'psd', g, 0, 2.38, sd*(w-1.5));
-      mesh(box(PL,.12,.3), mat.col, 'psd', g, 0, 3.75, sd*(w-1.5));
-      const s = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 3.1, sd*.03); if (sd < 0) s.rotation.y = PI;
+      const s = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, lv === 'U' ? 3.1 : 4.1, sd*.03); if (sd < 0) s.rotation.y = PI;
+      if (lv === 'U'){   // underground: sealed by floor-to-ceiling platform screen doors
+        mesh(box(PL,2.7,.08), mat.psd, 'psd', g, 0, 2.38, sd*(w-1.5)); mesh(box(PL,.12,.3), mat.col, 'psd', g, 0, 3.75, sd*(w-1.5));
+      } else mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w-1.75));
     }
-    mesh(box(PL,.08,.7), mat.lamp, null, g, 0, 4.7, 0);
+    if (lv === 'U') mesh(box(PL,.08,.7), mat.lamp, null, g, 0, 4.7, 0);
+    else {
+      mesh(box(PL,.18,pw+1.6), mat.roof, 'station', g, 0, 5.3, 0);
+      for (let x=-30; x<=30; x+=12) mesh(cyl(.15,4.3,10), mat.col, 'station', g, x, 3.15, 0);
+      if (c.y > 2) for (const x of [-24,24]) mesh(box(1.5,c.y,1.5), mat.pier, 'station', g, x, -c.y/2+.03, 0);
+    }
   } else for (const sd of [-1,1]){   // side platforms outside the tracks
     mesh(box(PL,1,5), mat.plat, 'station', g, 0, .53, sd*(w+3.95));
     mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w+1.75));
@@ -441,7 +490,7 @@ const stations = ST.map((d, i) => {
     const a = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 4.2, sd*(w+6.0)); if (sd > 0) a.rotation.y = PI;
     const b = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 4.2, sd*(w+6.03)); if (sd < 0) b.rotation.y = PI;
   }
-  return {i, name:d[0], code:kj(i), lv, x:d[3], u:stU[i], g, c, label:addLabel(d[0], ''), pos:new T.Vector3(c.x, c.y + (lv === 'U' ? 6.4 : 7), c.z)};
+  return {i, name:d.n, code:kj(i), lv, pl:d.pl, x:d.x, u:stU[i], g, c, label:addLabel(d.n, ''), pos:new T.Vector3(c.x, c.y + (lv === 'U' ? 6.4 : 7), c.z)};
 });
 // every stop a train makes on one round trip: down the line, then back
 const stops = [];
@@ -527,7 +576,7 @@ function buildTrain(i, stopIdx){
 }
 const sx = tr => tr.dir*tr.o;                      // +1 when car 0 is leading
 function setLights(tr){ const f = sx(tr) > 0; tr.lights[0].color.setHex(f ? 0xfff6d8 : 0xff2a2a); tr.lights[1].color.setHex(f ? 0xff2a2a : 0xfff6d8); }
-function setDoorSide(tr){ tr.doorSide = (stops[tr.next].st.lv === 'U' ? 1 : -1)*sx(tr); }   // island platforms are on the inner side
+function setDoorSide(tr){ tr.doorSide = (stops[tr.next].st.pl === 'I' ? 1 : -1)*sx(tr); }   // island platforms are on the inner side
 const uOf = tr => uA + (tr.dir > 0 ? tr.q : P - tr.q);
 
 const VMAX = 22.2, ACC = 1.0, B = 1.0, ZC = 150;
@@ -544,7 +593,7 @@ function stepTrain(tr, dt){
   const lim = (d, vt, w) => { const x = Math.sqrt(vt*vt + 2*B*Math.max(d,0)); if (x < va){ va = x; why = w; } };
   for (let d=-2*HALF; d<=300; d+=12){            // speed limits for curves and crossovers, under the train and ahead
     const u = uC + tr.dir*(HALF+d); if (u < 0 || u > LT) continue;
-    const k = Math.abs(K[Math.min(NS-1, (u/ds)|0)]); let vt = k ? Math.min(VMAX, Math.sqrt(.9/k)) : VMAX;
+    const k = Math.abs(K[Math.min(NS-1, (u/ds)|0)]); let vt = k ? clamp(Math.sqrt(.9/k), 6, VMAX) : VMAX;
     if (inX(u, tr.dir)) vt = Math.min(vt, 9);
     if (vt < VMAX) lim(d, vt, 'curve');
   }
@@ -734,11 +783,11 @@ function pickAt(e){
 /* ---------- the parts ---------- */
 const front = [CAR/2+5, .2, 0];
 const INFO = {
-  body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell, 2.65 metres wide. Four cars make a train about 67 metres long, joined by open gangways so the whole thing is one long room.',
+  body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell, 2.65 metres wide. Four cars make a train about 67 metres long, joined by open gangways so the whole thing is one long room. Each car carries up to 220 people.',
     more:'These are Innovia Metro trains, built by Bombardier (now Alstom). The line also runs older two-car sets of the same family. Light matters: this train starts and stops every couple of minutes, and every start costs energy.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
   nose:{g:'train', name:'Front end, with no cab', what:'There is no driver, so there is no driver\'s cab. The front is a passenger window. You can stand right at the nose and watch the track come at you.',
     more:'Both ends are the same, because at the end of the line the train simply sets off the other way. Watch the headlights and tail lights swap at Gombak or Putra Heights.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
-  doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors on both sides. Only the platform side opens: the outside at most stations, the inside at the underground ones, where the platform sits between the tracks.',
+  doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors on both sides. Only the platform side opens. Some stations have a platform on each side of the tracks, others have one island in the middle, so the train has to know which side to open.',
     more:'Doors and motor are tied together by an interlock. While any door reports open, the train cannot take power. Try it: drive it yourself, open the doors and push the throttle.', f:{car:1, off:[0,2,1.3], dist:26, pol:1.25, az:PI+.4, layers:{xray:false}}},
   interior:{g:'train', name:'Inside', bm:'Tempat duduk', what:'Seats run along the walls, which leaves the middle clear for standing. Poles and a level floor from end to end.',
     more:'The floor sits at platform height, so there is no step. Everything heavy lives under the floor or on the roof to keep this space open.', f:{car:1, off:[0,1.6,0], dist:13, pol:.95, az:PI+.35, layers:{xray:true}}},
@@ -762,11 +811,11 @@ const INFO = {
     more:'The magnetic wave from the slab on the train grips this strip from just above and pulls against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
   rails:{g:'track', name:'Running rails', bm:'Landasan', what:'Two steel rails, 1,435 millimetres apart. That is standard gauge, the same spacing most metros in the world use.',
     more:'They carry and guide the train. There are two tracks, and trains keep to the left, the same as Malaysian roads.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
-  viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Of the 37 stations, 31 are up on a concrete viaduct above the roads. Only Sri Rampai sits at ground level.',
+  viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Of the 37 stations, 31 are up on a concrete viaduct above the roads. Sri Rampai is the one exception outside the tunnels: it sits down at ground level.',
     more:'Being off the street is what makes driverless running practical. Nothing else shares the track, so a computer always knows what is on it.', f:{car:1, off:[0,-2,0], dist:42, pol:1.66, az:PI+.5}},
   tunnel:{g:'track', name:'Tunnel', bm:'Terowong', what:'Under the city centre the line dives underground for five stations: Ampang Park, KLCC, Kampung Baru, Dang Wangi and Masjid Jamek.',
-    more:'The model cuts the ground away so you can watch the train inside. The ramps here are far steeper than the real ones, because the distances are squashed.', f:{fixed:(() => { const c = cAt((stU[9]+stU[10])/2); return new T.Vector3(c.x, c.y+2, c.z); })(), dist:44, pol:1.3, az:1}},
-  station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. Elevated stations have a platform on each side of the tracks. Underground ones have a single island in the middle.',
+    more:'The model cuts the ground away so you can watch the train inside. The ramps here are steeper than the real ones, because the map is shrunk.', f:{fixed:(() => { const c = cAt((stU[9]+stU[10])/2); return new T.Vector3(c.x, c.y+2, c.z); })(), dist:44, pol:1.3, az:1}},
+  station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. Fifteen stations have a platform on each side of the tracks. The other 22, including all five underground ones, have a single island in the middle, and the tracks spread apart to make room.',
     more:'The train stops at the same marks every time, so doors line up with the same spots on the platform. See the Line tab for all 37 stations.', f:stnFocus(stations[13])},
   psd:{g:'track', name:'Platform screen doors', what:'At the five underground stations a glass wall runs from floor to ceiling along the platform edge, with doors that open only when a train is stopped behind them.',
     more:'They keep people and air-conditioned air on the platform side. They only work because the train stops in exactly the same place every time.', f:stnFocus(stations[9], 20, 1.3)},
@@ -813,7 +862,7 @@ stations.forEach(st => {
   const li = document.createElement('li'), b = document.createElement('button'); if (st.lv === 'U') li.className = 'under';
   b.innerHTML = '<span class="code"></span><span class="nm"><span></span><small></small></span><span class="mk"></span>';
   b.children[0].textContent = st.code; b.children[1].children[0].textContent = st.name;
-  b.children[1].children[1].textContent = LVNAME[st.lv] + (st.x ? ' · change for ' + st.x : '');
+  b.children[1].children[1].textContent = LVNAME[st.lv] + (st.pl === 'I' ? ', island platform' : ', side platforms') + (st.x ? ' · change for ' + st.x : '');
   b.addEventListener('click', () => { setFocus(stnFocus(st)); markCam(''); });
   li.appendChild(b); $('linelist').appendChild(li); st.li = li; st.mk = b.children[2];
 });
