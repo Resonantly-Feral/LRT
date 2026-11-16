@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kelana Jaya LRT in 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: the 3D stage fills the screen; one side panel (bottom sheet on phones) holds parts, the story and the controls. */
+:root{
+  --bg:#e9eef3; --panel:#ffffff; --ink:#14202b; --muted:#566676; --line:#d3dbe4; --chip:#e7edf3;
+  --accent:#c2185b; --accent-ink:#ffffff; --blue:#0a4fa3; --ok:#1c7f47; --warn:#a05f00; --glass:rgba(255,255,255,.86);
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0b1118; --panel:#131b24; --ink:#e8eef4; --muted:#94a4b4; --line:#273442; --chip:#1c2733;
+  --accent:#ff5c93; --accent-ink:#1d0711; --blue:#6aa8ff; --ok:#52d38d; --warn:#f1b44c; --glass:rgba(19,27,36,.86); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0b1118; --panel:#131b24; --ink:#e8eef4; --muted:#94a4b4; --line:#273442; --chip:#1c2733;
+  --accent:#ff5c93; --accent-ink:#1d0711; --blue:#6aa8ff; --ok:#52d38d; --warn:#f1b44c; --glass:rgba(19,27,36,.86); color-scheme:dark }
+
+html,body{height:100%;margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);overflow:hidden}
+*{box-sizing:border-box}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#app{height:100%;display:flex}
+#stage{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}
+#stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.over{position:absolute;pointer-events:none;display:flex;flex-direction:column;gap:8px}
+.over > *{pointer-events:auto}
+#top{top:12px;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));align-items:flex-start}
+h1{font:700 30px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance;text-transform:uppercase}
+h1 b{color:var(--accent);font-weight:700}
+.sub{margin:0;color:var(--muted);font-size:13px;max-width:44ch}
+.titlebox{background:var(--glass);padding:10px 12px;border-radius:4px;display:flex;flex-direction:column;gap:4px;backdrop-filter:blur(6px)}
+.row{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--glass);border-radius:999px;padding:5px 12px;font-weight:500;font-size:14px;backdrop-filter:blur(6px)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+#hud{left:max(16px,env(safe-area-inset-left,0px));bottom:12px;background:var(--glass);padding:10px 14px;border-radius:4px;min-width:210px;max-width:calc(100% - 32px);gap:2px;backdrop-filter:blur(6px)}
+#hud .lab{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+#spd{font:700 40px/1 var(--display);font-variant-numeric:tabular-nums}
+#spd small{font:500 14px var(--body);color:var(--muted);margin-left:4px}
+#bar{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0}
+#bar i{display:block;height:100%;width:0;background:var(--accent)}
+#status{font-weight:600}
+#pwr{font-size:13px;color:var(--muted)}
+#pwr.draw{color:var(--warn)} #pwr.regen{color:var(--ok)}
+
+.lbl{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;font:600 13px var(--display);letter-spacing:.06em;text-transform:uppercase;
+  background:var(--glass);border-left:3px solid var(--accent);padding:2px 7px;will-change:transform}
+.lbl.train{border-left-color:var(--blue)}
+
+#panel{width:370px;max-width:42%;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 6px 9px;font:600 17px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+#fold{flex:none;width:46px;display:none}
+.pane{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:14px;
+  padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pane h2{font:700 22px/1.1 var(--display);letter-spacing:.02em;text-transform:uppercase;margin:0;text-wrap:balance}
+.pane h3{font:600 12px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+.pane p{margin:0;max-width:62ch}
+.bm{color:var(--accent);font-weight:600;font-size:13px}
+#card{border-top:3px solid var(--accent);background:var(--chip);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.partlist{display:flex;flex-wrap:wrap;gap:6px}
+.partlist button{border:1px solid var(--line);background:var(--panel);border-radius:3px;padding:5px 10px;font-size:14px}
+.partlist button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.note{font-size:13px;color:var(--muted)}
+
+ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:s}
+ol.steps li{counter-increment:s}
+ol.steps button{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:3px;padding:10px 12px;display:grid;grid-template-columns:28px 1fr;gap:2px 8px}
+ol.steps button::before{content:counter(s);font:700 22px/1 var(--display);color:var(--accent);grid-row:1 / span 2}
+ol.steps .t{font-weight:600}
+ol.steps .d{grid-column:2;color:var(--muted);font-size:14px;display:none}
+ol.steps button[aria-current="step"]{border-color:var(--accent);background:var(--chip)}
+ol.steps button[aria-current="step"] .d{display:block;color:var(--ink)}
+
+.group{display:flex;flex-direction:column;gap:8px}
+label.tog{display:flex;gap:10px;align-items:flex-start}
+label.tog input{margin-top:4px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+label.tog span small{display:block;color:var(--muted);font-size:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--panel);padding:7px 8px;font-weight:500}
+.seg button + button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+#thr{width:100%;accent-color:var(--accent)}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.btn{border:1px solid var(--ink);background:var(--panel);border-radius:3px;padding:7px 12px;font-weight:600}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+#fail{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center}
+
+@media (max-width:760px){
+  #app{flex-direction:column}
+  #panel{width:auto;max-width:none;height:46%;border-left:0;border-top:1px solid var(--line);flex:none}
+  #panel.min{height:auto}
+  #panel.min .pane{display:none}
+  #fold{display:block}
+  .pane{padding-left:max(16px,env(safe-area-inset-left,0px))}
+  h1{font-size:23px} .sub{display:none}
+  #spd{font-size:30px} #hud{padding:8px 10px;min-width:170px}
+  .chip{font-size:13px;padding:4px 10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div class="over" id="top">
+      <div class="titlebox">
+        <h1><b>Kelana Jaya</b> LRT in 3D</h1>
+        <p class="sub">A driverless Malaysian train you can pull apart. Drag to look around, pinch or scroll to zoom, tap a part to learn it.</p>
+      </div>
+      <div class="row" id="cams" role="group" aria-label="Camera">
+        <button class="chip" data-cam="follow" aria-pressed="true">Follow train</button>
+        <button class="chip" data-cam="under" aria-pressed="false">Under the floor</button>
+        <button class="chip" data-cam="cab" aria-pressed="false">Front window</button>
+        <button class="chip" data-cam="station" aria-pressed="false">Station</button>
+        <button class="chip" data-cam="all" aria-pressed="false">Whole line</button>
+      </div>
+    </div>
+    <div class="over" id="hud" aria-live="off">
+      <span class="lab" id="hudname">Train 1</span>
+      <div id="spd">0<small>km/h</small></div>
+      <div id="bar"><i></i></div>
+      <div id="status">Doors open</div>
+      <div id="pwr">Stopped</div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="parts" id="tab-parts">Parts</button>
+      <button role="tab" aria-selected="false" data-tab="how" id="tab-how">How it runs</button>
+      <button role="tab" aria-selected="false" data-tab="ctl" id="tab-ctl">Controls</button>
+      <button id="fold" aria-label="Collapse or expand panel" title="Collapse or expand">▾</button>
+    </div>
+
+    <div class="pane" id="pane-parts" role="tabpanel">
+      <div id="card" aria-live="polite">
+        <h2 id="c-name">Pick a part</h2>
+        <span class="bm" id="c-bm" hidden></span>
+        <p id="c-what">Tap anything on the train or the track, or choose from the list below. The camera flies to it and it glows.</p>
+        <p id="c-more" class="note" hidden></p>
+      </div>
+      <h3>On the train</h3>
+      <div class="partlist" id="pl-train"></div>
+      <h3>On the track</h3>
+      <div class="partlist" id="pl-track"></div>
+      <p class="note">This is a simplified model of the Kelana Jaya Line (Line 5), which runs driverless trains pushed by linear motors. Shapes and sizes are approximate and the loop is a toy track, with two real station names borrowed. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
+    </div>
+
+    <div class="pane" id="pane-how" role="tabpanel" hidden>
+      <p>Seven steps, in the order the energy and the decisions actually flow. Tap a step and the model shows it.</p>
+      <ol class="steps" id="steps"></ol>
+    </div>
+
+    <div class="pane" id="pane-ctl" role="tabpanel" hidden>
+      <div class="group">
+        <h3>Show</h3>
+        <label class="tog"><input type="checkbox" id="l-xray"><span>See-through body<small>Fade the shell to see seats, floor and the gear underneath.</small></span></label>
+        <label class="tog"><input type="checkbox" id="l-explode"><span>Take it apart<small>Lift the body and roof units off the bogies.</small></span></label>
+        <label class="tog"><input type="checkbox" id="l-power"><span>Power flow<small>Glowing power rails, and the magnetic wave under each motor. Amber is pushing, green is braking and giving power back.</small></span></label>
+        <label class="tog"><input type="checkbox" id="l-signal" checked><span>Signalling space<small>The strip ahead of each train is track the computers have reserved for it to stop in.</small></span></label>
+      </div>
+      <div class="group">
+        <h3>Which train</h3>
+        <div class="seg" id="which"><button data-t="0" aria-pressed="true">Train 1</button><button data-t="1" aria-pressed="false">Train 2</button></div>
+      </div>
+      <div class="group">
+        <h3>Who drives</h3>
+        <div class="seg" id="mode"><button data-m="auto" aria-pressed="true">The computer (real life)</button><button data-m="man" aria-pressed="false">Me</button></div>
+        <div id="manual" hidden class="group">
+          <input type="range" id="thr" min="-100" max="100" value="0" aria-label="Throttle: left brakes, right accelerates">
+          <div class="ends"><span>Brake</span><span>Coast</span><span>Power</span></div>
+          <button class="btn" id="doorbtn" disabled>Open doors</button>
+          <p class="note" id="manhint">Try to speed into a curve or run into the train ahead. The protection system overrules you.</p>
+        </div>
+        <label class="tog"><input type="checkbox" id="hold"><span>Hold the other train at its next station<small>Watch your train queue up behind it at a safe distance.</small></span></label>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const stage = $('stage');
+if (!window.THREE) { fail('The 3D library did not load. Check your connection and reload.'); return; }
+const T = THREE, PI = Math.PI;
+function fail(msg){ const d=document.createElement('div'); d.id='fail'; d.textContent=msg; stage.appendChild(d); }
+
+let renderer;
+try { renderer = new T.WebGLRenderer({antialias:true}); } catch(e) { fail('This browser could not start 3D graphics (WebGL).'); return; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.outputEncoding = T.sRGBEncoding;
+stage.prepend(renderer.domElement);
+const canvas = renderer.domElement;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const scene = new T.Scene();
+scene.fog = new T.Fog(0xffffff, 350, 1100);
+const camera = new T.PerspectiveCamera(50, 1, 0.3, 2500);
+const hemi = new T.HemisphereLight(0xffffff, 0x6b7a66, 1);
+const sun = new T.DirectionalLight(0xffffff, 1); sun.position.set(150, 260, 90);
+scene.add(hemi, sun);
+
+/* ---------- track path: a stadium-shaped loop ---------- */
+const L = 220, R = 60, C = PI*R, P = 2*L + 2*C, H = 9;   // straight, curve radius, curve length, lap, deck height
+const mod = s => ((s % P) + P) % P;
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+function pathAt(s){
+  s = mod(s); let x,z,tx,tz;
+  if (s < L)            { x = -L/2 + s; z = R; tx = 1; tz = 0; }
+  else if (s < L + C)   { const t=(s-L)/R; x = L/2 + R*Math.sin(t); z = R*Math.cos(t); tx = Math.cos(t); tz = -Math.sin(t); }
+  else if (s < 2*L + C) { x = L/2 - (s-L-C); z = -R; tx = -1; tz = 0; }
+  else                  { const t=(s-2*L-C)/R; x = -L/2 - R*Math.sin(t); z = -R*Math.cos(t); tx = -Math.cos(t); tz = Math.sin(t); }
+  return {x, z, tx, tz, nx:-tz, nz:tx};
+}
+const onCurve = s => { s = mod(s); return (s > L && s < L+C) || s > 2*L+C; };
+const distNextCurve = s => { s = mod(s); return s < L ? L-s : s < L+C ? 0 : s < 2*L+C ? 2*L+C-s : 0; };
+
+/* ---------- materials, tagged by part so a part can glow ---------- */
+const parts = {}, pick = [];
+function M(key, color, o){
+  const m = new T.MeshStandardMaterial(Object.assign({color, roughness:.7, metalness:.1}, o||{}));
+  m.userData.baseE = 0x000000; m.userData.baseI = 1;
+  if (key) (parts[key] = parts[key] || []).push(m);
+  return m;
+}
+function mesh(geo, mat, part, parent, x, y, z){
+  const me = new T.Mesh(geo, mat); me.position.set(x||0, y||0, z||0);
+  if (part) { me.userData.part = part; pick.push(me); }
+  parent.add(me); return me;
+}
+const box = (w,h,d) => new T.BoxGeometry(w,h,d);
+const cyl = (r,h,n) => new T.CylinderGeometry(r,r,h,n||16);
+const mat = {
+  body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x0a4fa3), red: M('body', 0xd3202f),
+  glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xdfe5ea, {roughness:.4}),
+  nose: M('nose', 0xf4f6f8, {roughness:.45}), screen: M('nose', 0x101820, {roughness:.15, metalness:.4}),
+  floor: M('interior', 0x8d98a3), seat: M('interior', 0x2a62b8), pole: M('interior', 0xe9c53a, {metalness:.5, roughness:.35}),
+  bogie: M('bogie', 0x3a424b, {metalness:.4}), wheel: M('wheels', 0x9aa4ad, {metalness:.8, roughness:.3}), hub: M('wheels', 0x2b3138),
+  lim: M('lim', 0xb86a2b, {metalness:.5, roughness:.45}), shoe: M('shoes', 0xd8a31a, {metalness:.5}),
+  inverter: M('inverter', 0x56636f, {metalness:.3}), aux: M('aux', 0x6f7b70, {metalness:.3}),
+  hvac: M('hvac', 0xb9c2ca, {roughness:.6}), gang: M('body', 0x2a3037),
+  deck: M('viaduct', 0xb8bcc0, {roughness:.95, side:T.DoubleSide}), pier: M('viaduct', 0xa9aeb3, {roughness:.95}),
+  rail: M('rails', 0x7e8890, {metalness:.8, roughness:.35, side:T.DoubleSide}),
+  react: M('reaction', 0xd9dee3, {metalness:.9, roughness:.25, side:T.DoubleSide}),
+  power: M('power', 0xe07b1a, {metalness:.3, roughness:.5, side:T.DoubleSide}),
+  plat: M('station', 0xc9ced3, {roughness:.9}), roof: M('station', 0xe9edf0, {roughness:.6, side:T.DoubleSide}),
+  col: M('station', 0x8e99a3, {metalness:.4}), yellow: M(null, 0xf2c200), ground: M(null, 0x9fb58f, {roughness:1}),
+  head: new T.MeshBasicMaterial({color:0xfff6d8}), tail: new T.MeshBasicMaterial({color:0xff2a2a}),
+};
+const shellMats = [mat.body, mat.blue, mat.red, mat.glass, mat.door, mat.nose, mat.screen, mat.gang, mat.hvac];
+
+/* ---------- sweep a cross-section along the loop ---------- */
+function sweep(profile, material, part){
+  const n = Math.ceil(P/2), m = profile.length, pos = [];
+  const ring = i => { const p = pathAt(P*i/n); return profile.map(q => [p.x + p.nx*q[0], H + q[1], p.z + p.nz*q[0]]); };
+  let a = ring(0);
+  for (let i=1; i<=n; i++){ const b = ring(i);
+    for (let j=0; j<m; j++){ const k=(j+1)%m; pos.push(...a[j],...b[j],...b[k], ...a[j],...b[k],...a[k]); }
+    a = b; }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  return mesh(g, material, part, scene);
+}
+const rect = (l0,l1,y0,y1) => [[l0,y0],[l1,y0],[l1,y1],[l0,y1]];
+sweep([[-2.2,-.9],[2.2,-.9],[2.2,.3],[1.95,.3],[1.95,0],[-1.95,0],[-1.95,.3],[-2.2,.3]], mat.deck, 'viaduct');
+sweep(rect(.68,.755,0,.18), mat.rail, 'rails'); sweep(rect(-.755,-.68,0,.18), mat.rail, 'rails');
+sweep(rect(-.17,.17,.02,.14), mat.react, 'reaction');
+sweep(rect(-1.25,-1.18,.22,.30), mat.power, 'power'); sweep(rect(-1.25,-1.18,.40,.48), mat.power, 'power');
+
+for (let s=15; s<P; s+=30){
+  const p = pathAt(s), g = new T.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(-p.tz, p.tx); scene.add(g);
+  mesh(new T.CylinderGeometry(.8,.95,H-1.7,14), mat.pier, 'viaduct', g, 0, (H-1.7)/2, 0);
+  mesh(box(1.7,.8,4.6), mat.pier, 'viaduct', g, 0, H-1.3, 0);
+}
+
+/* ---------- ground and a rough city ---------- */
+const ground = new T.Mesh(new T.PlaneGeometry(4000,4000), mat.ground); ground.rotation.x = -PI/2; scene.add(ground);
+function winTex(lit){
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = lit ? '#000' : '#cfd6dc'; g.fillRect(0,0,64,64);
+  let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  for (let y=0; y<4; y++) for (let x=0; x<4; x++){
+    const on = rnd() > .45; g.fillStyle = lit ? (on ? '#ffd98a' : '#0a0d12') : '#5f7386'; g.fillRect(x*16+3, y*16+4, 10, 8); }
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3,6); return t;
+}
+const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex(true), emissive:0xffffff, emissiveIntensity:0, roughness:.8});
+(() => {
+  let seed = 42; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  const N = 110, im = new T.InstancedMesh(box(1,1,1), bldMat, N), o = new T.Object3D(), col = new T.Color(); let i = 0;
+  while (i < N){
+    const x = (rnd()-.5)*760, z = (rnd()-.5)*520;
+    const d = Math.abs(x) < L/2 ? Math.min(Math.abs(z-R), Math.abs(z+R)) : Math.abs(Math.hypot(Math.abs(x)-L/2, z) - R);
+    if (d < 24) continue;
+    const w = 12+rnd()*16, dp = 12+rnd()*16, h = 8 + Math.pow(rnd(),2.2)*80;
+    o.position.set(x, h/2, z); o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
+    im.setColorAt(i, col.setHSL(.58, .08, .62+rnd()*.3)); i++;
+  }
+  scene.add(im);
+})();
+
+/* ---------- stations ---------- */
+function signTex(name, code){
+  const c = document.createElement('canvas'); c.width = 768; c.height = 144; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0,0,768,144); g.fillStyle = '#c2185b'; g.fillRect(0,0,160,144);
+  g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 64px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(code, 80, 76);
+  g.textAlign = 'left'; g.fillStyle = '#14202b'; g.font = '700 80px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 190, 78);
+  return new T.CanvasTexture(c);
+}
+const stations = [{name:'Pasar Seni', code:'KJ14', s:L/2, z:R, rot:0}, {name:'KL Sentral', code:'KJ15', s:L+C+L/2, z:-R, rot:PI}];
+stations.forEach(st => {
+  const g = new T.Group(); g.position.set(0, H, st.z); g.rotation.y = st.rot; scene.add(g);
+  mesh(box(84,1,5), mat.plat, 'station', g, 0, .53, 3.95);
+  mesh(box(84,.02,.35), mat.yellow, null, g, 0, 1.045, 1.75);
+  const rf = mesh(box(84,.18,6), mat.roof, 'station', g, 0, 5.3, 4.2); rf.rotation.x = .07;
+  for (let x=-36; x<=36; x+=12) mesh(cyl(.13,4.3,10), mat.col, 'station', g, x, 3.15, 6.3);
+  mesh(box(84,1.1,.06), mat.col, 'station', g, 0, 1.6, 6.42);
+  for (const x of [-26,26]) mesh(box(1.3,H,1.3), mat.pier, 'station', g, x, -H/2+.03, 4.4);
+  const sm = new T.MeshBasicMaterial({map:signTex(st.name, st.code)});
+  const a = mesh(new T.PlaneGeometry(7,1.3), sm, 'station', g, 0, 4.2, 6.0); a.rotation.y = PI;
+  mesh(new T.PlaneGeometry(7,1.3), sm, 'station', g, 0, 4.2, 6.02);
+  st.label = addLabel(st.name, ''); st.pos = new T.Vector3(0, H+6.6, st.z + (st.rot ? -4 : 4));
+});
+
+/* ---------- train ---------- */
+const CAR = 16.6, GAP = .8, SP = CAR+GAP, BG = 5.6, NCAR = 4, NOSE = 1.6, HALF = 1.5*SP + CAR/2 + NOSE, WR = .28;
+const bodyGeo = (() => {
+  const s = new T.Shape(); s.moveTo(-1.3,.9); s.lineTo(1.3,.9); s.lineTo(1.3,3.1); s.quadraticCurveTo(1.3,3.45,.95,3.45);
+  s.lineTo(-.95,3.45); s.quadraticCurveTo(-1.3,3.45,-1.3,3.1); s.closePath();
+  return new T.ExtrudeGeometry(s, {depth:CAR, bevelEnabled:false, curveSegments:6});
+})();
+function noseGeo(y0, y1, hw, eps){
+  const g = box(NOSE, y1-y0, 2*hw), p = g.attributes.position, cy = (y0+y1)/2;
+  for (let i=0; i<p.count; i++) if (p.getX(i) > 0){ p.setX(i, NOSE/2 + eps - (p.getY(i)+cy-.9)/2.4); p.setZ(i, p.getZ(i)*.84); }
+  g.computeVertexNormals(); return g;
+}
+function buildBogie(){
+  const g = new T.Group(), axles = [], bars = [];
+  mesh(box(2.5,.16,1.3), mat.bogie, 'bogie', g, 0, .56, 0);
+  for (const x of [-.9,.9]){
+    const ax = new T.Group(); ax.position.set(x, .46, 0); g.add(ax); axles.push(ax);
+    mesh(cyl(.06,1.6,8), mat.wheel, 'wheels', ax).rotation.x = PI/2;
+    for (const z of [-.7175,.7175]){ mesh(cyl(WR,.11,22), mat.wheel, 'wheels', ax, 0, 0, z).rotation.x = PI/2; mesh(box(.42,.09,.13), mat.hub, 'wheels', ax, 0, 0, z); }
+  }
+  mesh(box(1.5,.13,.5), mat.lim, 'lim', g, 0, .265, 0);
+  for (let j=0; j<7; j++){
+    const bm = new T.MeshBasicMaterial({color:0xffa524, transparent:true, opacity:.5, depthWrite:false});
+    const b = new T.Mesh(box(.15,.05,.56), bm); b.position.set(-.63 + j*.21, .17, 0); b.visible = false; g.add(b); bars.push(b);
+  }
+  for (const y of [.26,.44]) mesh(box(.3,.05,.36), mat.shoe, 'shoes', g, 0, y, -1.0);
+  mesh(box(.12,.3,.12), mat.shoe, 'shoes', g, 0, .4, -.74);
+  return {g, axles, bars};
+}
+function buildCar(idx){
+  const g = new T.Group(), low = new T.Group(), shell = new T.Group(), roof = new T.Group();
+  g.add(low, shell); shell.add(roof);
+  mesh(box(CAR,.14,2.5), mat.floor, 'interior', low, 0, .97, 0);
+  for (const b of [[-7.1,1.6],[-2.6,3.2],[2.6,3.2],[7.1,1.6]]) for (const sd of [-1,1]) mesh(box(b[1],.45,.5), mat.seat, 'interior', low, b[0], 1.27, sd*.95);
+  for (const x of [-5.2,0,5.2]) mesh(cyl(.025,2.2,6), mat.pole, 'interior', low, x, 2.1, 0);
+  mesh(box(2.6,.5,1), mat.inverter, 'inverter', low, 1.6, .62, .35);
+  mesh(box(2,.45,.9), mat.aux, 'aux', low, -1.8, .64, -.3);
+  const body = mesh(bodyGeo, mat.body, 'body', shell, -CAR/2, 0, 0); body.rotation.y = PI/2;
+  const doors = [];
+  for (const sd of [-1,1]){
+    mesh(box(CAR,.28,.02), mat.blue, 'body', shell, 0, 1.5, sd*1.305);
+    mesh(box(CAR,.08,.02), mat.red, 'body', shell, 0, 1.3, sd*1.305);
+    for (const w of [[-7.1,1.6],[-2.6,3.4],[2.6,3.4],[7.1,1.6]]) mesh(box(w[1],.95,.02), mat.glass, 'body', shell, w[0], 2.4, sd*1.306);
+    for (const dx of [-5.2,0,5.2]) for (const dir of [-1,1]){
+      const leaf = mesh(box(.68,1.95,.05), mat.door, 'doors', shell, dx+dir*.35, 2, sd*1.34);
+      const gl = new T.Mesh(box(.5,.8,.06), mat.glass); gl.position.y = .4; leaf.add(gl);
+      if (sd === 1) doors.push({leaf, base:dx+dir*.35, dir});
+    }
+  }
+  for (const x of [-4,4]) mesh(box(3.2,.28,1.7), mat.hvac, 'hvac', roof, x, 3.58, 0);
+  if (idx < NCAR-1) mesh(box(GAP,2.2,2), mat.gang, 'body', shell, -CAR/2-GAP/2, 2.1, 0);
+  if (idx === 0 || idx === NCAR-1){
+    const n = new T.Group(); n.position.x = (idx === 0 ? 1 : -1)*(CAR/2 + NOSE/2); if (idx) n.rotation.y = PI; shell.add(n);
+    mesh(noseGeo(.9,3.3,1.29,0), mat.nose, 'nose', n, 0, 2.1, 0);
+    mesh(noseGeo(1.95,3.05,1.1,.03), mat.screen, 'nose', n, 0, 2.5, 0);
+    for (const z of [-.8,.8]) mesh(box(.06,.14,.32), idx === 0 ? mat.head : mat.tail, null, n, .65, 1.3, z);
+  }
+  const bogies = [buildBogie(), buildBogie()]; g.add(bogies[0].g, bogies[1].g);
+  scene.add(g);
+  return {g, low, shell, roof, bogies, doors, th:0};
+}
+const N_ENV = 36;
+function buildTrain(i, s){
+  const cars = []; for (let c=0; c<NCAR; c++) cars.push(buildCar(c));
+  const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.Float32BufferAttribute(new Float32Array((N_ENV+1)*6), 3));
+  const ix = []; for (let k=0; k<N_ENV; k++){ const a=k*2; ix.push(a,a+1,a+2, a+1,a+3,a+2); } eg.setIndex(ix);
+  const env = new T.Mesh(eg, new T.MeshBasicMaterial({color:0x22b8ff, transparent:true, opacity:.5, side:T.DoubleSide, depthWrite:false}));
+  env.frustumCulled = false; scene.add(env);
+  return {i, s, v:0, a:0, state:'run', next:0, timer:0, door:0, doorT:0, thr:0, manual:false, hold:false, prot:false, why:'free', cars, env,
+          label:addLabel('Train '+(i+1), 'train'), roll:0};
+}
+const VMAX = 22.2, VC = 10, ACC = 1.0, B = 1.0;
+const trains = [buildTrain(0, stations[0].s), buildTrain(1, stations[0].s + 300)];
+Object.assign(trains[0], {state:'dwell', door:1, doorT:1, timer:3, next:0});
+trains[1].next = 1; trains[1].v = 15;
+let cur = 0, holdOther = false;
+
+function stepTrain(tr, dt){
+  const front = tr.s + HALF; let va = VMAX, why = 'free';
+  const lim = (d, vt, w) => { const x = Math.sqrt(vt*vt + 2*B*Math.max(d,0)); if (x < va){ va = x; why = w; } };
+  if (onCurve(front) || onCurve(tr.s - HALF)) lim(0, VC, 'curve'); else lim(distNextCurve(front), VC, 'curve');
+  const ld = trains[(tr.i+1) % trains.length];
+  if (ld !== tr) lim(mod(ld.s - HALF - front) - 14, 0, 'ahead');
+  if (tr.manual){ let best = 1e9; stations.forEach((st,k) => { const d = mod(st.s - tr.s + 5); if (d < best){ best = d; tr.next = k; } }); }
+  let d = mod(stations[tr.next].s - tr.s); if (d > P-6) d -= P;
+  tr.dStn = d; tr.prot = false;
+  if (tr.state === 'run'){
+    const v0 = tr.v;
+    if (!tr.manual){
+      lim(d, 0, 'station');
+      if (d < .3 && tr.v < .9){ tr.v = 0; tr.state = 'dwell'; tr.timer = 0; tr.doorT = 1; }
+      else if (tr.door > .02) tr.v = 0;
+      else tr.v = tr.v > va ? Math.max(va, tr.v - 1.4*dt) : Math.min(va, tr.v + ACC*dt);
+    } else if (tr.door > .02) tr.v = 0;
+    else {
+      let v = Math.max(0, tr.v + (tr.thr >= 0 ? tr.thr*ACC : tr.thr*1.3)*dt);
+      if (v > va){ v = Math.max(va, tr.v - 1.4*dt); tr.prot = tr.thr > -.2; }
+      tr.v = v;
+    }
+    tr.a = (tr.v - v0)/dt; tr.s = mod(tr.s + tr.v*dt);
+  } else {
+    tr.a = 0; tr.timer += dt;
+    if (tr.timer > 7 && !tr.hold) tr.doorT = 0;
+    if (tr.timer > 7 && tr.door < .01 && !tr.hold){ tr.state = 'run'; tr.next = (tr.next+1) % stations.length; }
+  }
+  tr.door += clamp(tr.doorT - tr.door, -dt/1.4, dt/1.4);
+  tr.why = why; tr.va = va;
+}
+let explode = 0;
+function poseTrain(tr, dt, time){
+  tr.roll -= tr.v*dt/WR;
+  tr.cars.forEach((c, i) => {
+    const sc = tr.s + (1.5-i)*SP, A = pathAt(sc+BG), Bk = pathAt(sc-BG);
+    const dx = A.x-Bk.x, dz = A.z-Bk.z, th = Math.atan2(-dz, dx), hd = Math.hypot(dx,dz)/2;
+    c.g.position.set((A.x+Bk.x)/2, H, (A.z+Bk.z)/2); c.g.rotation.y = th; c.th = th;
+    c.bogies[0].g.position.x = hd;  c.bogies[0].g.rotation.y = Math.atan2(-A.tz, A.tx) - th;
+    c.bogies[1].g.position.x = -hd; c.bogies[1].g.rotation.y = Math.atan2(-Bk.tz, Bk.tx) - th;
+    c.low.position.y = explode*1.1; c.shell.position.y = explode*3.6; c.roof.position.y = explode*1.3;
+    for (const dr of c.doors) dr.leaf.position.x = dr.base + dr.dir*.66*tr.door;
+    for (const b of c.bogies){
+      for (const ax of b.axles) ax.rotation.z = tr.roll;
+      if (layers.power){
+        const push = tr.a > .1, regen = tr.a < -.1, amp = push || regen ? 1 : tr.v > .5 ? .35 : .08;
+        b.bars.forEach((bar, j) => {
+          const ph = j*1.05 + (regen ? 1 : -1)*time*(4 + tr.v*.5);
+          bar.material.opacity = amp*(.15 + .85*Math.max(0, Math.sin(ph)));
+          bar.material.color.setHex(regen ? 0x35e08a : 0xffa524);
+        });
+      }
+    }
+  });
+  // reserved stopping space ahead
+  if (layers.signal){
+    const len = tr.v*tr.v/(2*B) + 12, p = tr.env.geometry.attributes.position, s0 = tr.s + HALF;
+    for (let k=0; k<=N_ENV; k++){ const q = pathAt(s0 + len*k/N_ENV);
+      p.setXYZ(k*2, q.x + q.nx*1.05, H+.24, q.z + q.nz*1.05); p.setXYZ(k*2+1, q.x - q.nx*1.05, H+.24, q.z - q.nz*1.05); }
+    p.needsUpdate = true; tr.env.material.color.setHex(tr.why === 'ahead' ? 0xffb020 : 0x22b8ff);
+  }
+}
+
+/* ---------- labels ---------- */
+function addLabel(text, cls){ const d = document.createElement('div'); d.className = 'lbl ' + cls; d.textContent = text; stage.appendChild(d); return d; }
+const tmp = new T.Vector3();
+function placeLabel(el, v, show){
+  tmp.copy(v).project(camera);
+  const ok = show && tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05;
+  el.hidden = !ok; if (!ok) return;
+  el.style.transform = `translate(${((tmp.x+1)/2*stage.clientWidth).toFixed(1)}px,${((1-tmp.y)/2*stage.clientHeight).toFixed(1)}px) translate(-50%,-100%)`;
+}
+
+/* ---------- layers ---------- */
+const layers = {xray:false, explode:false, power:false, signal:true};
+function setLayer(k, on){
+  layers[k] = on; $('l-'+k).checked = on;
+  if (k === 'xray') shellMats.forEach(m => { m.transparent = on; m.opacity = on ? (m === mat.glass || m === mat.screen ? .1 : .16) : 1; m.depthWrite = !on; m.needsUpdate = true; });
+  if (k === 'power'){
+    trains.forEach(t => t.cars.forEach(c => c.bogies.forEach(b => b.bars.forEach(x => x.visible = on))));
+    mat.power.userData.baseE = on ? 0xff7a00 : 0; mat.power.userData.baseI = on ? .9 : 1; restore(mat.power);
+  }
+  if (k === 'signal') trains.forEach(t => t.env.visible = on);
+}
+['xray','explode','power','signal'].forEach(k => $('l-'+k).addEventListener('change', e => setLayer(k, e.target.checked)));
+
+/* ---------- theme: day in light mode, night in dark mode ---------- */
+function restore(m){ m.emissive.setHex(m.userData.baseE); m.emissiveIntensity = m.userData.baseI; }
+function isDark(){ const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+function applyTheme(){
+  const dk = isDark(), sky = dk ? 0x0a1220 : 0xcfe2ee;
+  scene.background = new T.Color(sky); scene.fog.color.setHex(sky);
+  hemi.intensity = dk ? .42 : .62; hemi.color.setHex(dk ? 0x8ea6d0 : 0xffffff); hemi.groundColor.setHex(dk ? 0x1a2230 : 0x6b7a66);
+  sun.intensity = dk ? .28 : .55; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
+  mat.ground.color.setHex(dk ? 0x1c2a25 : 0x9fb58f);
+  bldMat.emissiveIntensity = dk ? .9 : 0; bldMat.color.setHex(dk ? 0x5a6470 : 0xffffff);
+  for (const m of [mat.glass, mat.screen]){ m.userData.baseE = dk ? 0xffdca0 : 0; m.userData.baseI = dk ? .55 : 1; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); }
+  mat.roof.userData.baseE = dk ? 0xfff0cc : 0; mat.roof.userData.baseI = dk ? .25 : 1; if (sel !== 'station') restore(mat.roof);
+}
+new MutationObserver(applyTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+
+/* ---------- camera ---------- */
+const cam = {tgt:new T.Vector3(), off:new T.Vector3(), dist:46, pol:1.15, az:0, wDist:46, wPol:1.15, wAz:0, lastTh:null, cab:false};
+let focus = null;
+const want = new T.Vector3();
+function resolveFocus(f, out){
+  if (f.fixed){ out.copy(f.fixed); return null; }
+  const c = trains[cur].cars[f.car == null ? 1 : f.car]; c.g.updateMatrixWorld();
+  out.set(f.off[0], f.off[1], f.off[2]); c.g.localToWorld(out); return c.th;
+}
+function setFocus(f){
+  const old = want.clone().add(cam.off);
+  focus = f; cam.cab = !!f.cab; cam.lastTh = null;
+  const th = resolveFocus(f, want);
+  cam.off.copy(old).sub(want); if (reduced || cam.off.length() > 500) cam.off.set(0,0,0);
+  cam.wDist = f.dist; cam.wPol = f.pol; cam.wAz = (th || 0) + f.az;
+  let d = cam.wAz - cam.az; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.az = cam.wAz - d;
+  if (reduced){ cam.dist = cam.wDist; cam.pol = cam.wPol; cam.az = cam.wAz; }
+}
+const CAMS = {
+  follow:  {car:1, off:[0,2,0], dist:46, pol:1.15, az:PI+.6},
+  under:   {car:1, off:[BG,.45,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}},
+  cab:     {car:0, off:[0,2,0], dist:46, pol:1.15, az:PI+.6, cab:true},
+  station: {fixed:new T.Vector3(0,H+2,R+2), dist:48, pol:1.2, az:PI-.5},
+  all:     {fixed:new T.Vector3(0,H,0), dist:330, pol:.85, az:PI+.25},
+};
+function setCam(name){
+  const f = CAMS[name]; if (f.layers) for (const k in f.layers) setLayer(k, f.layers[k]);
+  setFocus(f); markCam(name);
+}
+function markCam(name){ document.querySelectorAll('#cams .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.cam === name)); }
+$('cams').addEventListener('click', e => { const b = e.target.closest('[data-cam]'); if (b) setCam(b.dataset.cam); });
+
+function updateCamera(dt){
+  const th = resolveFocus(focus, want);
+  if (th != null){ if (cam.lastTh != null){ let d = th - cam.lastTh; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.az += d; cam.wAz += d; } cam.lastTh = th; }
+  const k = 1 - Math.exp(-dt*5);
+  cam.off.multiplyScalar(1-k); cam.dist += (cam.wDist-cam.dist)*k; cam.pol += (cam.wPol-cam.pol)*k; cam.az += (cam.wAz-cam.az)*k;
+  cam.tgt.copy(want).add(cam.off);
+  if (cam.cab){
+    const tr = trains[cur], c = tr.cars[0]; c.g.updateMatrixWorld();
+    camera.position.set(CAR/2 + NOSE + .4, 2.7, 0); c.g.localToWorld(camera.position);
+    const q = pathAt(tr.s + HALF + 28); camera.lookAt(q.x, H+2, q.z); return;
+  }
+  const sp = Math.sin(cam.pol);
+  camera.position.set(cam.tgt.x + cam.dist*sp*Math.sin(cam.az), Math.max(.6, cam.tgt.y + cam.dist*Math.cos(cam.pol)), cam.tgt.z + cam.dist*sp*Math.cos(cam.az));
+  camera.lookAt(cam.tgt);
+}
+const ptrs = new Map(); let moved = 0, pinch = 0;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); if (ptrs.size === 1) moved = 0; pinch = 0; });
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX-p.x, dy = e.clientY-p.y; p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx)+Math.abs(dy);
+  if (ptrs.size === 1 && !cam.cab){ cam.wAz -= dx*.006; cam.wPol = clamp(cam.wPol - dy*.005, .12, 1.72); }
+  else if (ptrs.size === 2){ const a = [...ptrs.values()], d = Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); if (pinch) cam.wDist = clamp(cam.wDist*pinch/d, 2.5, 600); pinch = d; }
+});
+const up = e => { const had = ptrs.size; ptrs.delete(e.pointerId); pinch = 0; if (had === 1 && moved < 7 && e.type === 'pointerup') pickAt(e); };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.wDist = clamp(cam.wDist*Math.exp(e.deltaY*.0012), 2.5, 600); }, {passive:false});
+
+const ray = new T.Raycaster(), ndc = new T.Vector2();
+function pickAt(e){
+  const r = canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1));
+  ray.setFromCamera(ndc, camera);
+  const skip = layers.xray ? ['body','nose','doors','hvac'] : [];
+  const hit = ray.intersectObjects(pick, false).find(h => !skip.includes(h.object.userData.part));
+  if (hit) selectPart(hit.object.userData.part, false);
+}
+
+/* ---------- the parts ---------- */
+const front = [CAR/2+5, .2, 0];
+const INFO = {
+  body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell. Four cars are joined by open walk-through gangways, so the whole train is one long room.',
+    more:'Light matters here. The lighter the body, the less energy every start and stop costs, and this train starts and stops every couple of minutes.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
+  nose:{g:'train', name:'Front end, with no cab', what:'There is no driver, so there is no driver\'s cab. The front is a passenger window. You can stand right at the nose and watch the track come at you.',
+    more:'A small locked panel hides manual controls that staff can use to move the train by hand if they ever need to.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
+  doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors along the platform side. They unlock only when the train has fully stopped and is lined up with the platform.',
+    more:'Doors and motor are tied together by an interlock. While any door reports open, the train cannot take power. Try it: switch to driving it yourself, open the doors and push the throttle.', f:{car:1, off:[0,2,1.3], dist:26, pol:1.25, az:PI+.4, layers:{xray:false}}},
+  interior:{g:'train', name:'Inside', bm:'Tempat duduk', what:'Seats run along the walls, which leaves the middle clear for standing. Poles and a level floor from end to end.',
+    more:'The floor sits at platform height, so there is no step. Everything heavy lives under the floor or on the roof to keep this space open.', f:{car:1, off:[0,1.6,0], dist:13, pol:.95, az:PI+.35, layers:{xray:true}}},
+  hvac:{g:'train', name:'Air-conditioning units', bm:'Penyaman udara', what:'Two roof-mounted units per car. In Kuala Lumpur heat they are among the hungriest things on the train after the motors.',
+    more:'They run from the auxiliary power supply under the floor, not straight from the power rail.', f:{car:1, off:[4,3.6,0], dist:11, pol:.8, az:PI+.6}},
+  bogie:{g:'train', name:'Bogie', bm:'Bogi', what:'The wheeled frame under each end of a car. It swivels under the body so a long car can bend its way through a curve.',
+    more:'On this type of train the two axles in a bogie can also steer a little, each one pointing along the curve. That cuts the squeal and the wear on tight city bends. Watch a bogie as the train goes round the end of the loop.', f:{car:1, off:[BG,.5,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}}},
+  wheels:{g:'train', name:'Wheels and axles', bm:'Roda', what:'Plain steel wheels on steel rails. The odd thing is that nothing turns them. They carry the weight and keep the train on the track, and that is all.',
+    more:'On most trains the motor spins the wheels and the wheels grip the rail. Here the pushing is done by the flat motor below, so wet rails and steep ramps are much less of a problem.', f:{car:1, off:[BG+.9,.45,-.4], dist:4.5, pol:1.3, az:PI+.5, layers:{xray:true}}},
+  lim:{g:'train', name:'Linear induction motor', bm:'Motor aruhan linear', what:'The flat copper-coloured slab slung under each bogie. Picture an ordinary electric motor sliced open and unrolled flat.',
+    more:'Its coils make a magnetic wave that travels along the slab. The wave grabs the metal strip in the track below and pulls the train along it. No shaft, no gears, nothing spinning, nothing touching. Turn on Power flow to see the wave.', f:{car:1, off:[BG,.3,0], dist:4.6, pol:1.3, az:PI+.3, layers:{xray:true, power:true}}},
+  inverter:{g:'train', name:'Propulsion inverter', what:'A box of power electronics under the floor. The rail supplies steady electricity, but the motor needs a wave. This box builds the wave.',
+    more:'It can make the wave faster, slower or run it backwards. Change the wave and you change how the train moves, so this box is really the throttle and the brake pedal.', f:{car:1, off:[1.6,.6,0], dist:6.5, pol:1.32, az:PI-.4, layers:{xray:true}}},
+  aux:{g:'train', name:'Auxiliary power and batteries', what:'Turns rail power into gentler supplies for lights, air-conditioning, doors and the onboard computers.',
+    more:'Batteries keep the essentials alive, such as emergency lights, radio and door controls, if rail power drops out.', f:{car:1, off:[-1.8,.6,0], dist:6.5, pol:1.32, az:PI+.4, layers:{xray:true}}},
+  shoes:{g:'train', name:'Collector shoes', what:'Sprung metal pads that reach sideways from the bogie and slide along the power rails, picking up electricity as the train moves.',
+    more:'One shoe rides the positive rail and one the negative. Every bogie has a set, so the train stays powered across short gaps in the rails.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
+  power:{g:'track', name:'Power rails', what:'Two electrified rails running beside the track, fed with 750 volts of direct current from substations along the line.',
+    more:'One carries current out to the train and the other carries it back. On most railways the return path is the running rails; here it gets a rail of its own. This is why nobody walks on the track.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
+  reaction:{g:'track', name:'Reaction rail', what:'The flat, aluminium-topped strip lying between the running rails. It is the other half of the motor, and it never moves.',
+    more:'The magnetic wave from the slab on the train grips this strip from about a finger-width above and shoves against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
+  rails:{g:'track', name:'Running rails', bm:'Landasan', what:'Two steel rails, 1,435 millimetres apart. That is standard gauge, the same spacing most metros in the world use.',
+    more:'They carry and guide the train. Unusually, they do no electrical work and take no driving force from the wheels.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
+  viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Most of the line rides on a concrete deck above the roads, held up by single columns. Under the city centre it dives into tunnels.',
+    more:'Being off the street is what makes driverless running practical. Nothing else shares the track, so a computer always knows what is on it.', f:{car:1, off:[0,-2,0], dist:42, pol:1.66, az:PI+.5}},
+  station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. The train stops at the same marks every time, within a hand-width or so.',
+    more:'The two names here, Pasar Seni and KL Sentral, are real neighbouring stations on the line. The little loop joining them is made up.', f:{fixed:new T.Vector3(0,H+2,R+2), dist:48, pol:1.2, az:PI-.5}},
+  signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
+    more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
+};
+let sel = null;
+function selectPart(key, fly){
+  if (sel && parts[sel]) parts[sel].forEach(restore);
+  sel = key; const p = INFO[key];
+  $('c-name').textContent = p.name; $('c-bm').hidden = !p.bm; $('c-bm').textContent = p.bm ? 'Bahasa Melayu: ' + p.bm : '';
+  $('c-what').textContent = p.what; $('c-more').hidden = false; $('c-more').textContent = p.more;
+  document.querySelectorAll('.partlist button').forEach(b => b.setAttribute('aria-pressed', b.dataset.part === key));
+  if (fly){ if (p.f.layers) for (const k in p.f.layers) setLayer(k, p.f.layers[k]); setFocus(p.f); markCam(''); }
+  else { showTab('parts'); $('panel').classList.remove('min'); }
+}
+for (const key in INFO){
+  const b = document.createElement('button'); b.textContent = INFO[key].name; b.dataset.part = key; b.setAttribute('aria-pressed','false');
+  b.addEventListener('click', () => selectPart(key, true)); $('pl-' + INFO[key].g).appendChild(b);
+}
+
+/* ---------- how it runs ---------- */
+const STEPS = [
+  {t:'Electricity arrives from the side', d:'Substations feed two power rails beside the track. Collector shoes on every bogie slide along them and bring the power on board.', part:'shoes', layers:{power:true, xray:true, explode:false}},
+  {t:'A box under the floor reshapes it', d:'Rail power is steady. The motor needs a wave. The inverter builds that wave and can speed it up, slow it down or reverse it.', part:'inverter', layers:{xray:true}},
+  {t:'A motor with no spinning parts pushes', d:'The wave runs along the flat motor. It grips the reaction rail lying in the track and drags the train forward, floating a finger-width above it. Amber glow means pushing.', part:'lim', layers:{power:true, xray:true}},
+  {t:'The wheels only carry and steer', d:'Nothing drives the wheels, so the train does not depend on grip. It climbs steep ramps and pulls away cleanly in the rain, and the steering axles take tight curves quietly.', part:'wheels', layers:{xray:true}},
+  {t:'Nobody is driving', d:'Each train reports its position and gets back a limit: you may go this far. The strip ahead of the train is that limit. It grows with speed and stops short of the train in front.', part:'signal', layers:{signal:true, xray:false, explode:false}},
+  {t:'Braking gives power back', d:'To slow down, the wave is run slower than the train, so it drags backwards. The motor becomes a generator and the energy goes back into the rails for other trains. Green glow means braking. Friction brakes finish the stop and hold the train still.', part:'lim', layers:{power:true, xray:true}},
+  {t:'Doors, a pause, and off again', d:'The train stops on its mark and the doors unlock. While they are open the motor is locked out. Doors close, the computers hand over a fresh limit, and the cycle starts again.', part:'doors', layers:{xray:false, explode:false}},
+];
+STEPS.forEach((s, i) => {
+  const li = document.createElement('li'), b = document.createElement('button');
+  b.innerHTML = '<span class="t"></span><span class="d"></span>'; b.children[0].textContent = s.t; b.children[1].textContent = s.d;
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#steps button').forEach(x => x.removeAttribute('aria-current')); b.setAttribute('aria-current','step');
+    for (const k in s.layers) setLayer(k, s.layers[k]);
+    selectPart(s.part, true); showTab('how');
+  });
+  li.appendChild(b); $('steps').appendChild(li);
+});
+
+/* ---------- panel, tabs, driving ---------- */
+function showTab(name){
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
+  for (const n of ['parts','how','ctl']) $('pane-'+n).hidden = n !== name;
+}
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => { showTab(b.dataset.tab); $('panel').classList.remove('min'); }));
+$('fold').addEventListener('click', () => { const m = $('panel').classList.toggle('min'); $('fold').textContent = m ? '▴' : '▾'; });
+function seg(id, attr, fn){ $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); fn(b.dataset[attr]); }); }
+function setManual(on){
+  trains.forEach(t => { if (t.manual && t.door > 0) t.doorT = t.state === 'dwell' ? t.doorT : 0; t.manual = false; t.thr = 0; });
+  trains[cur].manual = on; $('manual').hidden = !on; $('thr').value = 0;
+  if (on && trains[cur].state === 'dwell'){ trains[cur].state = 'run'; }
+}
+seg('which', 't', v => { const man = trains[cur].manual; cur = +v; setManual(man); $('hudname').textContent = 'Train ' + (cur+1); cam.lastTh = null; });
+seg('mode', 'm', v => setManual(v === 'man'));
+$('thr').addEventListener('input', e => { trains[cur].thr = e.target.value/100; });
+$('doorbtn').addEventListener('click', () => { const t = trains[cur]; t.doorT = t.doorT ? 0 : 1; });
+$('hold').addEventListener('change', e => { holdOther = e.target.checked; });
+
+function setText(el, s){ if (el.textContent !== s) el.textContent = s; }
+function updateHud(){
+  const t = trains[cur], kmh = Math.round(t.v*3.6), st = stations[t.next].name;
+  setText($('spd').firstChild, String(kmh)); $('bar').firstElementChild.style.width = (t.v/VMAX*100).toFixed(0) + '%';
+  let s;
+  if (t.door > .02) s = (t.doorT ? 'Doors open at ' : 'Doors closing at ') + st;
+  else if (t.prot) s = 'Protection system is braking for you';
+  else if (t.v < .05) s = t.why === 'ahead' ? 'Waiting for the train ahead' : 'Stopped';
+  else if (t.manual) s = 'You are driving';
+  else if (t.why === 'ahead') s = 'Holding back, train ahead';
+  else if (t.why === 'station') s = 'Stopping at ' + st;
+  else if (t.why === 'curve') s = 'Easing through the curve';
+  else s = t.a > .1 ? 'Pulling away' : 'Top speed, next stop ' + st;
+  setText($('status'), s);
+  const pw = $('pwr'), c = t.a > .1 ? 'draw' : t.a < -.1 ? 'regen' : '';
+  setText(pw, c === 'draw' ? 'Drawing power from the rails' : c === 'regen' ? 'Feeding power back to the rails' : t.v > .5 ? 'Holding speed' : 'Motor locked out');
+  if (pw.className !== c) pw.className = c;
+  if (t.manual){
+    const ok = t.v < .05 && Math.abs(t.dStn) < 4; $('doorbtn').disabled = !ok && !t.doorT;
+    setText($('doorbtn'), t.doorT ? 'Close doors' : ok ? 'Open doors' : 'Doors locked until stopped at a platform');
+  }
+}
+
+/* ---------- loop ---------- */
+function resize(){ const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage); resize();
+applyTheme(); setLayer('signal', true);
+trains.forEach(t => poseTrain(t, 0, 0));
+focus = CAMS.follow; { const th = resolveFocus(focus, want); cam.az = cam.wAz = th + focus.az; }
+const lp = new T.Vector3(); let last = performance.now(), time = 0;
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now; time += dt;
+  explode += ((layers.explode ? 1 : 0) - explode) * (reduced ? 1 : 1 - Math.exp(-dt*4));
+  trains.forEach(t => { t.hold = holdOther && t.i !== cur; stepTrain(t, Math.max(dt, 1e-4)); });
+  trains.forEach(t => poseTrain(t, dt, time));
+  if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
+  updateCamera(dt); updateHud();
+  renderer.render(scene, camera);
+  stations.forEach(st => placeLabel(st.label, st.pos, !cam.cab));
+  trains.forEach(t => { const c = t.cars[1].g.position; lp.set(c.x, H+4.6+explode*5, c.z); placeLabel(t.label, lp, layers.signal && !cam.cab && cam.dist > 20); });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
