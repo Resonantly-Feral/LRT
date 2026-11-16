@@ -11,6 +11,7 @@
 :root{
   --bg:#e9eef3; --panel:#ffffff; --ink:#14202b; --muted:#566676; --line:#d3dbe4; --chip:#e7edf3;
   --accent:#c2185b; --accent-ink:#ffffff; --blue:#0a4fa3; --ok:#1c7f47; --warn:#a05f00; --glass:rgba(255,255,255,.86);
+  --led-bg:#17120a; --led-fg:#ffb640;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
 }
@@ -33,7 +34,7 @@ button{cursor:pointer}
 #stage{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;background:var(--bg)}
 #stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 
-.over{position:absolute;pointer-events:none;display:flex;flex-direction:column;gap:8px}
+.over{position:absolute;z-index:2;pointer-events:none;display:flex;flex-direction:column;gap:8px}
 .over > *{pointer-events:auto}
 #top{top:12px;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));align-items:flex-start}
 h1{font:700 30px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance;text-transform:uppercase}
@@ -101,6 +102,9 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
 #which{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
 .pane a{color:var(--accent)}
 #toward{margin-top:2px}
+#led{background:var(--led-bg);color:var(--led-fg);font:600 14px/1.3 var(--display);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border-radius:2px;margin-bottom:4px;max-width:300px}
+#snd{margin-top:6px;padding:3px 10px;font-size:13px;align-self:flex-start}
+#snd[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 ol.line{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 ol.line button{width:100%;display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;text-align:left;border:0;border-left:4px solid var(--accent);background:none;padding:6px 8px;margin-left:6px}
 ol.line button:hover{background:var(--chip)}
@@ -120,7 +124,8 @@ ol.line li.under button{border-left-style:dashed}
   #fold{display:block}
   .pane{padding-left:max(16px,env(safe-area-inset-left,0px))}
   h1{font-size:23px} .sub{display:none} .tabs button{font-size:14px;padding-inline:2px}
-  #spd{font-size:30px} #hud{padding:8px 10px;min-width:170px}
+  #spd{font-size:24px} #hud{padding:6px 8px;min-width:150px;max-width:220px}
+  #led{font-size:11px;padding:3px 6px;margin-bottom:2px} #pwr,#toward,#bar{display:none} #status{font-size:13px} #snd{margin-top:3px}
   .chip{font-size:13px;padding:4px 10px}
 }
 </style>
@@ -131,7 +136,7 @@ ol.line li.under button{border-left-style:dashed}
     <div class="over" id="top">
       <div class="titlebox">
         <h1><b>Kelana Jaya</b> LRT in 3D</h1>
-        <p class="sub">A driverless Malaysian train you can pull apart. Drag to look around, pinch or scroll to zoom, tap a part to learn it. Zoom far out, or tap Whole line, to see every train at once.</p>
+        <p class="sub">A driverless Malaysian train you can pull apart. Drag to look around, pinch or scroll to zoom, tap a part to learn it. Zoom far out, or tap Whole line, to see every train at once. Turn Sound on for the door chime and next-station announcements.</p>
       </div>
       <div class="row" id="cams" role="group" aria-label="Camera">
         <button class="chip" data-cam="follow" aria-pressed="true">Follow train</button>
@@ -139,16 +144,19 @@ ol.line li.under button{border-left-style:dashed}
         <button class="chip" data-cam="cab" aria-pressed="false">Front window</button>
         <button class="chip" data-cam="station" aria-pressed="false">Station</button>
         <button class="chip" data-cam="bird" aria-pressed="false">Bird's eye</button>
+        <button class="chip" data-cam="depot" aria-pressed="false">Depot</button>
         <button class="chip" data-cam="all" aria-pressed="false">Whole line</button>
       </div>
     </div>
     <div class="over" id="hud" aria-live="off">
+      <div id="led" aria-live="polite"></div>
       <span class="lab" id="hudname">Train 1</span>
       <div id="spd">0<small>km/h</small></div>
       <div id="bar"><i></i></div>
       <div id="status">Doors open</div>
       <div id="pwr">Stopped</div>
       <div id="toward" class="lab"></div>
+      <button id="snd" class="btn" aria-pressed="false">Sound off</button>
     </div>
   </div>
 
@@ -433,6 +441,7 @@ function winTex(lit){
     const on = rnd() > .45; g.fillStyle = lit ? (on ? '#ffd98a' : '#0a0d12') : '#5f7386'; g.fillRect(x*16+3, y*16+4, 10, 8); }
   const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3,6); return t;
 }
+const DEP = (() => { const c = cAt(stU[24]); return {x:c.x + c.nx*150, z:c.z + c.nz*150, th:c.th}; })();   // Subang Depot, beside Lembah Subang
 const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex(true), emissive:0xffffff, emissiveIntensity:0, roughness:.8});
 (() => {
   let seed = 42; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
@@ -440,7 +449,7 @@ const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex
   while (i < N && tries++ < 20000){
     const u = rnd()*LT, c = cAt(u), l = (rnd() < .5 ? -1 : 1)*(64 + rnd()*230), x = c.x + c.nx*l, z = c.z + c.nz*l;
     let ok = true; for (let j=0; j<NS && ok; j+=6){ const dx = X[j]-x, dz = Z[j]-z; if (dx*dx+dz*dz < 3200) ok = false; }
-    if (!ok) continue;
+    if (!ok || Math.hypot(x-DEP.x, z-DEP.z) < 240) continue;
     const city = Math.exp(-Math.pow((u-stU[11])/1500, 2));
     const w = 12+rnd()*16, dp = 12+rnd()*16, h = (8 + Math.pow(rnd(),2.2)*45)*(1 + 2.4*city);
     o.position.set(x, h/2, z); o.rotation.y = -c.th; o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
@@ -594,6 +603,34 @@ const dots = stations.map(st => { const m = mesh(new T.CylinderGeometry(st.x || 
 const balls = trains.map(t => { const m = mesh(new T.SphereGeometry(70, 18, 12), flat(0x0a4fa3), null, ovg); m.userData.train = t.i; return m; });
 let ov = false;
 
+/* ---------- Subang Depot: where the trains live. The real yard is beside Lembah Subang; this layout is invented. ---------- */
+const depot = new T.Group(); depot.position.set(DEP.x, 0, DEP.z); depot.rotation.y = -DEP.th; scene.add(depot);
+mat.yard = M('depot', 0x8f9498, {roughness:1}); mat.shedFrame = M('depot', 0x6f7b86, {metalness:.4});
+mat.shed = M('depot', 0xd9e2ea, {roughness:.4, transparent:true, opacity:.3, depthWrite:false, side:DS});
+mesh(box(330,.3,58), mat.yard, 'depot', depot, 0, .15, 0);
+for (const z of [-21,-15,-9,-3,3,9,15,21]){
+  for (const r of [-.7175,.7175]) mesh(box(320,.18,.075), mat.rail, 'rails', depot, 0, .39, z+r);
+  mesh(box(320,.12,.34), mat.react, 'reaction', depot, 0, .36, z);
+}
+mesh(box(150,.3,54), mat.shed, 'depot', depot, 85, 9.2, 0);
+for (const z of [-27,27]){ mesh(box(150,9,.2), mat.shed, 'depot', depot, 85, 4.7, z); for (const x of [10,60,110,160]) mesh(box(.6,9,.6), mat.shedFrame, 'depot', depot, x, 4.7, z); }
+mesh(box(44,12,26), mat.plat, 'depot', depot, -110, 6, -45);
+{ const sm = new T.MeshBasicMaterial({map:signTex('Depoh Subang', 'KJ')}); mesh(new T.PlaneGeometry(16,3), sm, 'depot', depot, -110, 9, -31.9); }
+const parked = [[-9,62],[3,96],[15,44],[-21,-60]].map(p => {
+  const lights = [new T.MeshBasicMaterial({color:0x40464c}), new T.MeshBasicMaterial({color:0x40464c})], g = new T.Group(); g.position.set(p[1], .3, p[0]); depot.add(g);
+  for (let c=0; c<NCAR; c++){ const car = buildCar(c, lights); g.add(car.g); car.g.position.set((1.5-c)*SP, 0, 0); car.bogies[0].g.position.x = BG; car.bogies[1].g.position.x = -BG; }
+  return g;
+});
+{ // the access ramp down from the viaduct
+  const c = cAt(stU[24]-80), a = new T.Vector3(c.x + c.nx*9, c.y-.3, c.z + c.nz*9), b = depot.localToWorld(new T.Vector3(-165, .1, 0));
+  depot.updateMatrixWorld(); b.set(-165, .1, 0); depot.localToWorld(b);
+  const m = mesh(box(4.6,.5,a.distanceTo(b)), mat.deck, 'depot', scene, (a.x+b.x)/2, (a.y+b.y)/2, (a.z+b.z)/2); m.lookAt(b);
+}
+const depPos = new T.Vector3(DEP.x, 15, DEP.z), depLabel = addLabel('Subang Depot', '');
+const depFocus = {fixed:new T.Vector3(DEP.x, 3, DEP.z), dist:150, pol:1.0, az:PI/2 - DEP.th + .7};
+mesh(box(170,6,100), flat(0x14202b), null, ovg, DEP.x, 36, DEP.z);
+depLabel.addEventListener('click', () => { setFocus(depFocus); markCam('depot'); });
+
 function flip(tr){
   tr.dir = -tr.dir; tr.q = stops[tr.next].q; tr.flipAt = tr.next; setLights(tr);
   if (tr.i === cur && focus && !focus.fixed) setFocus(focus);
@@ -746,6 +783,7 @@ const CAMS = {
   cab:     () => ({car:0, off:[0,2,0], dist:46, pol:1.15, az:PI+.6, cab:true}),
   station: () => stnFocus(stops[trains[cur].next].st),
   bird:    () => ({car:1, off:[0,0,0], dist:480, pol:.5, az:PI+.4}),
+  depot:   () => depFocus,
   all:     () => ({fixed:new T.Vector3((bx0+bx1)/2, 0, (bz0+bz1)/2), dist:1.12*Math.max((bz1-bz0)/2/.466, (bx1-bx0)/2/(.466*camera.aspect)), pol:.22, az:0}),
 };
 function setCam(name){
@@ -843,6 +881,8 @@ const INFO = {
     more:'The train stops at the same marks every time, so doors line up with the same spots on the platform. See the Line tab for all 37 stations.', f:stnFocus(stations[13])},
   psd:{g:'track', name:'Platform screen doors', what:'At the five underground stations a glass wall runs from floor to ceiling along the platform edge, with doors that open only when a train is stopped behind them.',
     more:'They keep people and air-conditioned air on the platform side. They only work because the train stops in exactly the same place every time.', f:stnFocus(stations[9], 20, 1.3)},
+  depot:{g:'track', name:'Subang Depot', bm:'Depoh Subang', what:'The train home. Every train on the line starts and ends its day here. Trains are parked, washed, checked and repaired in the yard and sheds, then sent up the ramp to join the line.',
+    more:'The real depot is beside Lembah Subang station, which sits on top of the depot access ramp. No plan of the yard was available, so the layout here is invented to show the idea: stabling tracks, a see-through shed, a workshop, and one train being shunted.', f:depFocus},
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
     more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
@@ -923,6 +963,29 @@ $('thr').addEventListener('input', e => { trains[cur].thr = e.target.value/100; 
 $('doorbtn').addEventListener('click', () => { const t = trains[cur]; if (!t.doorT) setDoorSide(t); t.doorT = t.doorT ? 0 : 1; });
 $('hold').addEventListener('change', e => { holdOther = e.target.checked; });
 
+let actx = null, soundOn = false, ledKey = '', ledTrain = -1;
+function chime(up){
+  if (!actx) return; const t0 = actx.currentTime;
+  (up ? [784, 988] : [988, 784]).forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(), s = t0 + i*.28;
+    o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.18, s+.02); g.gain.exponentialRampToValueAtTime(.001, s+.6);
+    o.connect(g); g.connect(actx.destination); o.start(s); o.stop(s+.65); });
+}
+function say(text){ try { if (!('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(text); u.rate = .95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+$('snd').addEventListener('click', () => {
+  soundOn = !soundOn; $('snd').setAttribute('aria-pressed', soundOn); $('snd').textContent = soundOn ? 'Sound on' : 'Sound off';
+  if (soundOn){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} chime(true); }
+  else try { speechSynthesis.cancel(); } catch (e) {}
+});
+function updateLed(t){
+  const stop = stops[t.next], name = stop.st.name, at = t.state === 'dwell' || t.door > .02;
+  const msg = at ? name + (stop.term && t.state === 'dwell' ? ' · Last stop' : stop.st.x ? ' · Change here for ' + stop.st.x : '') : 'Stesen berikutnya · Next station: ' + name;
+  setText($('led'), msg);
+  const key = (at ? 'a' : 'n') + t.next;
+  if (key !== ledKey || t.i !== ledTrain){
+    if (soundOn && t.i === ledTrain){ chime(at); say(at ? name : 'Stesen berikutnya, ' + name + '. Next station, ' + name + '.'); }
+    ledKey = key; ledTrain = t.i;
+  }
+}
 function setText(el, s){ if (el.textContent !== s) el.textContent = s; }
 function updateHud(){
   const t = trains[cur], kmh = Math.round(t.v*3.6), st = stops[t.next].st.name;
@@ -940,6 +1003,7 @@ function updateHud(){
   const pw = $('pwr'), c = t.a > .1 ? 'draw' : t.a < -.1 ? 'regen' : '';
   setText(pw, c === 'draw' ? 'Drawing power from the rails' : c === 'regen' ? 'Feeding power back to the rails' : t.v > .5 ? 'Holding speed' : 'Motor locked out');
   if (pw.className !== c) pw.className = c;
+  updateLed(t);
   setText($('toward'), 'Towards ' + (t.dir > 0 ? 'Putra Heights' : 'Gombak'));
   if (t.manual){
     const ok = t.v < .05 && Math.abs(t.dStn) < 4; $('doorbtn').disabled = !ok && !t.doorT;
@@ -966,6 +1030,8 @@ function frame(now){
   if ((lineT -= dt) < 0){ lineT = .5; updateLine(); }
   stations.forEach(st => { st.g.visible = !ov && st.pos.distanceTo(camera.position) < 1700;
     placeLabel(st.label, st.pos, !cam.cab && (!ov || st.x || st.term || cam.dist < 5000), ov ? 1e9 : 750, ov ? 'translate(12px,-50%)' : ''); });
+  depot.visible = !ov && depPos.distanceTo(camera.position) < 1900; if (depot.visible) parked[3].position.x = -60 + 45*Math.sin(time*.12);
+  placeLabel(depLabel, depPos, !cam.cab, ov ? 1e9 : 1500, ov ? 'translate(12px,-50%)' : '');
   if (ov) trains.forEach(t => { const b = balls[t.i]; b.position.set(t.pos.x, t.pos.y+70, t.pos.z); b.scale.setScalar(clamp(cam.dist/9000, .4, 2)*(t.i === cur ? 1.5 : 1)); b.material.color.setHex(t.i === cur ? 0xffb020 : 0x0a4fa3); });
   renderer.render(scene, camera);
   trains.forEach(t => { tmp2.set(t.pos.x, t.pos.y+(ov ? 70 : 4.6+explode*5), t.pos.z); setText(t.label, ov ? String(t.i+1) : 'Train ' + (t.i+1)); placeLabel(t.label, tmp2, ov || (layers.signal && !cam.cab && cam.dist > 20), ov ? 1e9 : 750, ov ? 'translate(calc(-100% - 12px),-50%)' : ''); });
