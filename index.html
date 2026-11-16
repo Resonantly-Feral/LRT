@@ -60,7 +60,7 @@ h1 b{color:var(--accent);font-weight:700}
 
 #panel{width:370px;max-width:42%;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
-.tabs button{flex:1;background:none;border:0;border-bottom:3px solid transparent;padding:12px 6px 9px;font:600 17px var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.tabs button{flex:1;min-width:0;background:none;border:0;border-bottom:3px solid transparent;padding:12px 6px 9px;font:600 15px var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 #fold{flex:none;width:46px;display:none}
 .pane{flex:1;min-height:0;overflow-y:auto;padding:14px 16px 20px;display:flex;flex-direction:column;gap:14px;
@@ -96,6 +96,18 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
 .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
 .btn{border:1px solid var(--ink);background:var(--panel);border-radius:3px;padding:7px 12px;font-weight:600}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+#which{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:3px;background:var(--panel)}
+.pane a{color:var(--accent)}
+#toward{margin-top:2px}
+ol.line{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ol.line button{width:100%;display:grid;grid-template-columns:44px 1fr auto;gap:8px;align-items:center;text-align:left;border:0;border-left:4px solid var(--accent);background:none;padding:6px 8px;margin-left:6px}
+ol.line button:hover{background:var(--chip)}
+ol.line .code{font:700 15px var(--display);color:var(--muted);font-variant-numeric:tabular-nums}
+ol.line .nm{font-weight:500}
+ol.line .nm small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+ol.line .mk{font:700 14px var(--display);color:var(--blue);white-space:nowrap}
+ol.line li.next button{background:var(--chip)}
+ol.line li.under button{border-left-style:dashed}
 #fail{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center}
 
 @media (max-width:760px){
@@ -105,7 +117,7 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
   #panel.min .pane{display:none}
   #fold{display:block}
   .pane{padding-left:max(16px,env(safe-area-inset-left,0px))}
-  h1{font-size:23px} .sub{display:none}
+  h1{font-size:23px} .sub{display:none} .tabs button{font-size:14px;padding-inline:2px}
   #spd{font-size:30px} #hud{padding:8px 10px;min-width:170px}
   .chip{font-size:13px;padding:4px 10px}
 }
@@ -124,7 +136,7 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
         <button class="chip" data-cam="under" aria-pressed="false">Under the floor</button>
         <button class="chip" data-cam="cab" aria-pressed="false">Front window</button>
         <button class="chip" data-cam="station" aria-pressed="false">Station</button>
-        <button class="chip" data-cam="all" aria-pressed="false">Whole line</button>
+        <button class="chip" data-cam="bird" aria-pressed="false">Bird's eye</button>
       </div>
     </div>
     <div class="over" id="hud" aria-live="off">
@@ -133,6 +145,7 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
       <div id="bar"><i></i></div>
       <div id="status">Doors open</div>
       <div id="pwr">Stopped</div>
+      <div id="toward" class="lab"></div>
     </div>
   </div>
 
@@ -140,6 +153,7 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="parts" id="tab-parts">Parts</button>
       <button role="tab" aria-selected="false" data-tab="how" id="tab-how">How it runs</button>
+      <button role="tab" aria-selected="false" data-tab="line" id="tab-line">Line</button>
       <button role="tab" aria-selected="false" data-tab="ctl" id="tab-ctl">Controls</button>
       <button id="fold" aria-label="Collapse or expand panel" title="Collapse or expand">▾</button>
     </div>
@@ -155,12 +169,18 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
       <div class="partlist" id="pl-train"></div>
       <h3>On the track</h3>
       <div class="partlist" id="pl-track"></div>
-      <p class="note">This is a simplified model of the Kelana Jaya Line (Line 5), which runs driverless trains pushed by linear motors. Shapes and sizes are approximate and the loop is a toy track, with two real station names borrowed. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
+      <p class="note">A model of the Kelana Jaya Line (Line 5): all 37 stations in order, four-car trains at their real length and width, tunnels under the city centre. Distances between stations are squashed to about a quarter of a kilometre so a ride takes minutes, and the route's bends are a rough sketch of the real map, not a survey. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
+      <p class="note">Checked against: <a href="https://en.wikipedia.org/wiki/Kelana_Jaya_Line" target="_blank" rel="noopener">Wikipedia, Kelana Jaya Line</a> · <a href="https://en.wikipedia.org/wiki/Innovia_Metro" target="_blank" rel="noopener">Wikipedia, Innovia Metro</a> · <a href="https://www.railway-technology.com/projects/kuala-lumpur-driverless-metro/" target="_blank" rel="noopener">Railway Technology</a> · <a href="https://myrapid.com.my/bus-train/rapid-kl/kelana-jaya-line/" target="_blank" rel="noopener">MyRapid</a></p>
     </div>
 
     <div class="pane" id="pane-how" role="tabpanel" hidden>
       <p>Seven steps, in the order the energy and the decisions actually flow. Tap a step and the model shows it.</p>
       <ol class="steps" id="steps"></ol>
+    </div>
+
+    <div class="pane" id="pane-line" role="tabpanel" hidden>
+      <p>The whole line, Gombak at the top. Tap a station to fly there. Arrows are trains and the way they are heading.</p>
+      <ol class="line" id="linelist"></ol>
     </div>
 
     <div class="pane" id="pane-ctl" role="tabpanel" hidden>
@@ -173,7 +193,7 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
       </div>
       <div class="group">
         <h3>Which train</h3>
-        <div class="seg" id="which"><button data-t="0" aria-pressed="true">Train 1</button><button data-t="1" aria-pressed="false">Train 2</button></div>
+        <select id="which" aria-label="Which train to follow"></select>
       </div>
       <div class="group">
         <h3>Who drives</h3>
@@ -184,7 +204,11 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
           <button class="btn" id="doorbtn" disabled>Open doors</button>
           <p class="note" id="manhint">Try to speed into a curve or run into the train ahead. The protection system overrules you.</p>
         </div>
-        <label class="tog"><input type="checkbox" id="hold"><span>Hold the other train at its next station<small>Watch your train queue up behind it at a safe distance.</small></span></label>
+        <label class="tog"><input type="checkbox" id="hold"><span>Hold the train ahead at its next station<small>Watch your train queue up behind it at a safe distance.</small></span></label>
+      </div>
+      <div class="group">
+        <h3>Time</h3>
+        <div class="seg" id="warp"><button data-x="1" aria-pressed="true">Real speed</button><button data-x="4" aria-pressed="false">4 times faster</button></div>
       </div>
     </div>
   </aside>
@@ -196,9 +220,9 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
 'use strict';
 const $ = id => document.getElementById(id);
 const stage = $('stage');
+function fail(msg){ const d=document.createElement('div'); d.id='fail'; d.textContent=msg; stage.appendChild(d); }
 if (!window.THREE) { fail('The 3D library did not load. Check your connection and reload.'); return; }
 const T = THREE, PI = Math.PI;
-function fail(msg){ const d=document.createElement('div'); d.id='fail'; d.textContent=msg; stage.appendChild(d); }
 
 let renderer;
 try { renderer = new T.WebGLRenderer({antialias:true}); } catch(e) { fail('This browser could not start 3D graphics (WebGL).'); return; }
@@ -209,26 +233,66 @@ const canvas = renderer.domElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const scene = new T.Scene();
-scene.fog = new T.Fog(0xffffff, 350, 1100);
-const camera = new T.PerspectiveCamera(50, 1, 0.3, 2500);
+scene.fog = new T.Fog(0xffffff, 500, 1800);
+const camera = new T.PerspectiveCamera(50, 1, 0.3, 3600);
 const hemi = new T.HemisphereLight(0xffffff, 0x6b7a66, 1);
 const sun = new T.DirectionalLight(0xffffff, 1); sun.position.set(150, 260, 90);
 scene.add(hemi, sun);
 
-/* ---------- track path: a stadium-shaped loop ---------- */
-const L = 220, R = 60, C = PI*R, P = 2*L + 2*C, H = 9;   // straight, curve radius, curve length, lap, deck height
-const mod = s => ((s % P) + P) % P;
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
-function pathAt(s){
-  s = mod(s); let x,z,tx,tz;
-  if (s < L)            { x = -L/2 + s; z = R; tx = 1; tz = 0; }
-  else if (s < L + C)   { const t=(s-L)/R; x = L/2 + R*Math.sin(t); z = R*Math.cos(t); tx = Math.cos(t); tz = -Math.sin(t); }
-  else if (s < 2*L + C) { x = L/2 - (s-L-C); z = -R; tx = -1; tz = 0; }
-  else                  { const t=(s-2*L-C)/R; x = -L/2 - R*Math.sin(t); z = -R*Math.cos(t); tx = -Math.cos(t); tz = Math.sin(t); }
-  return {x, z, tx, tz, nx:-tz, nz:tx};
+const smooth = (a,b,x) => { const t = clamp((x-a)/(b-a), 0, 1); return t*t*(3-2*t); };
+
+/* ---------- the real line: 37 stations in order ----------
+   [name, rough compass bearing of the track here, level, interchange]
+   level: E elevated, G ground level, U underground. Bearings sketch the real map; they are not surveyed. */
+const ST = [
+  ['Gombak',200,'E'],['Taman Melati',200,'E'],['Wangsa Maju',200,'E'],['Sri Rampai',200,'G'],['Setiawangsa',200,'E'],
+  ['Jelatek',205,'E'],["Dato' Keramat",235,'E'],['Damai',235,'E'],['Ampang Park',240,'U','MRT Putrajaya Line'],['KLCC',265,'U'],
+  ['Kampung Baru',285,'U'],['Dang Wangi',215,'U'],['Masjid Jamek',195,'U','Ampang and Sri Petaling Lines'],['Pasar Seni',180,'E','MRT Kajang Line'],
+  ['KL Sentral',220,'E','KTM, airport trains, Monorail'],['Bangsar',245,'E'],['Abdullah Hukum',185,'E','KTM'],['Kerinchi',225,'E'],['Universiti',260,'E'],
+  ['Taman Jaya',235,'E'],['Asia Jaya',265,'E'],['Taman Paramount',300,'E'],['Taman Bahagia',300,'E'],['Kelana Jaya',250,'E'],
+  ['Lembah Subang',310,'E'],['Ara Damansara',270,'E'],['Glenmarie',215,'E'],['Subang Jaya',190,'E','KTM'],['SS 15',175,'E'],['SS 18',200,'E'],
+  ['USJ 7',180,'E'],['Taipan',205,'E'],['Wawasan',185,'E'],['USJ 21',170,'E'],['Alam Megah',220,'E'],['Subang Alam',190,'E'],
+  ['Putra Heights',150,'E','Sri Petaling Line'],
+];
+const NST = ST.length, D = 260, TAIL = 75, ds = 2;
+const LEVEL = {E:8.5, G:.45, U:-7}, HALFW = {E:2.25, G:2.25, U:5.6};
+const LVNAME = {E:'Elevated', G:'Ground level', U:'Underground'};
+
+// centreline: straight legs through each station, joined by circular curves
+const segs = [{len:TAIL, k:0}], stU = []; let acc = TAIL;
+(() => { let tPrev = 0;
+  for (let i=0; i<NST; i++){
+    let t = 0, r = 0, al = 0;
+    if (i < NST-1){ al = (ST[i+1][1]-ST[i][1])*PI/180; const h = Math.abs(al)/2;
+      if (h > 1e-3){ r = Math.min(400, (D/2-48)/Math.tan(h)); t = r*Math.tan(h); } }
+    segs.push({len:D/2-tPrev, k:0}); acc += D/2-tPrev; stU[i] = acc;
+    segs.push({len:D/2-t, k:0}); acc += D/2-t;
+    if (t){ segs.push({len:r*Math.abs(al), k:Math.sign(al)/r}); acc += r*Math.abs(al); }
+    tPrev = t;
+  }
+  segs.push({len:TAIL, k:0}); acc += TAIL; })();
+const LT = acc, NS = Math.floor(LT/ds) + 1;
+const X = new Float32Array(NS), Z = new Float32Array(NS), TH = new Float32Array(NS), K = new Float32Array(NS), YA = new Float32Array(NS), WA = new Float32Array(NS);
+(() => { let x = 0, z = 0, th = (ST[0][1]-90)*PI/180, si = 0, sEnd = segs[0].len, sti = 0;
+  for (let j=0; j<NS; j++){
+    const s = j*ds; while (s >= sEnd && si < segs.length-1){ si++; sEnd += segs[si].len; }
+    const k = segs[si].k; X[j] = x; Z[j] = z; TH[j] = th; K[j] = k;
+    while (sti < NST-2 && s > stU[sti+1]) sti++;
+    const a = smooth(stU[sti]+55, stU[sti+1]-55, s), l0 = ST[sti][2], l1 = ST[sti+1][2];
+    YA[j] = LEVEL[l0] + (LEVEL[l1]-LEVEL[l0])*a; WA[j] = HALFW[l0] + (HALFW[l1]-HALFW[l0])*a;
+    x += Math.cos(th + k*ds/2)*ds; z += Math.sin(th + k*ds/2)*ds; th += k*ds;
+  } })();
+function cAt(u){
+  const f = clamp(u/ds, 0, NS-1.001), i = f|0, a = f-i, th = TH[i] + (TH[i+1]-TH[i])*a, c = Math.cos(th), s = Math.sin(th);
+  return {x:X[i]+(X[i+1]-X[i])*a, z:Z[i]+(Z[i+1]-Z[i])*a, y:YA[i]+(YA[i+1]-YA[i])*a, w:WA[i]+(WA[i+1]-WA[i])*a, th, tx:c, tz:s, nx:-s, nz:c};
 }
-const onCurve = s => { s = mod(s); return (s > L && s < L+C) || s > 2*L+C; };
-const distNextCurve = s => { s = mod(s); return s < L ? L-s : s < L+C ? 0 : s < 2*L+C ? 2*L+C-s : 0; };
+const uA = stU[0], uB = stU[NST-1], LEN = uB-uA, P = 2*LEN;
+const mod = s => ((s % P) + P) % P, wrap = s => mod(s + P/2) - P/2;
+// trains keep left. At each end a crossover takes a reversed train onto the other track.
+const xa = (u, dir) => dir > 0 ? smooth(uA+60, uA+140, u) : smooth(uB-140, uB-60, u);
+const inX = (u, dir) => dir > 0 ? (u > uA+50 && u < uA+150) : (u > uB-150 && u < uB-50);
+function TP(u, dir){ const c = cAt(u), l = c.w*(1 - 2*xa(u, dir)); return {x:c.x+c.nx*l, y:c.y, z:c.z+c.nz*l, th:c.th}; }
 
 /* ---------- materials, tagged by part so a part can glow ---------- */
 const parts = {}, pick = [];
@@ -245,6 +309,7 @@ function mesh(geo, mat, part, parent, x, y, z){
 }
 const box = (w,h,d) => new T.BoxGeometry(w,h,d);
 const cyl = (r,h,n) => new T.CylinderGeometry(r,r,h,n||16);
+const DS = T.DoubleSide;
 const mat = {
   body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x0a4fa3), red: M('body', 0xd3202f),
   glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xdfe5ea, {roughness:.4}),
@@ -254,41 +319,66 @@ const mat = {
   lim: M('lim', 0xb86a2b, {metalness:.5, roughness:.45}), shoe: M('shoes', 0xd8a31a, {metalness:.5}),
   inverter: M('inverter', 0x56636f, {metalness:.3}), aux: M('aux', 0x6f7b70, {metalness:.3}),
   hvac: M('hvac', 0xb9c2ca, {roughness:.6}), gang: M('body', 0x2a3037),
-  deck: M('viaduct', 0xb8bcc0, {roughness:.95, side:T.DoubleSide}), pier: M('viaduct', 0xa9aeb3, {roughness:.95}),
-  rail: M('rails', 0x7e8890, {metalness:.8, roughness:.35, side:T.DoubleSide}),
-  react: M('reaction', 0xd9dee3, {metalness:.9, roughness:.25, side:T.DoubleSide}),
-  power: M('power', 0xe07b1a, {metalness:.3, roughness:.5, side:T.DoubleSide}),
-  plat: M('station', 0xc9ced3, {roughness:.9}), roof: M('station', 0xe9edf0, {roughness:.6, side:T.DoubleSide}),
-  col: M('station', 0x8e99a3, {metalness:.4}), yellow: M(null, 0xf2c200), ground: M(null, 0x9fb58f, {roughness:1}),
-  head: new T.MeshBasicMaterial({color:0xfff6d8}), tail: new T.MeshBasicMaterial({color:0xff2a2a}),
+  deck: M('viaduct', 0xb8bcc0, {roughness:.95, side:DS}), pier: M('viaduct', 0xa9aeb3, {roughness:.95}),
+  rail: M('rails', 0x7e8890, {metalness:.8, roughness:.35, side:DS}),
+  react: M('reaction', 0xd9dee3, {metalness:.9, roughness:.25, side:DS}),
+  power: M('power', 0xe07b1a, {metalness:.3, roughness:.5, side:DS}),
+  tunnel: M('tunnel', 0x8a9098, {roughness:1, side:T.BackSide}),
+  plat: M('station', 0xc9ced3, {roughness:.9}), roof: M('station', 0xdfe8ee, {roughness:.3, side:DS, transparent:true, opacity:.34, depthWrite:false}),
+  col: M('station', 0x8e99a3, {metalness:.4}),
+  psd: M('psd', 0x9fd0e6, {roughness:.1, metalness:.2, transparent:true, opacity:.32, depthWrite:false, side:DS}),
+  lamp: new T.MeshBasicMaterial({color:0xfff3d6}),
+  yellow: M(null, 0xf2c200), ground: M(null, 0x9fb58f, {roughness:1, transparent:true}),
+  tower: M(null, 0xb9c4cc, {metalness:.7, roughness:.3}),
 };
+mat.tunnel.userData.baseE = 0x2a3038; mat.tunnel.emissive.setHex(0x2a3038);
 const shellMats = [mat.body, mat.blue, mat.red, mat.glass, mat.door, mat.nose, mat.screen, mat.gang, mat.hvac];
 
-/* ---------- sweep a cross-section along the loop ---------- */
-function sweep(profile, material, part){
-  const n = Math.ceil(P/2), m = profile.length, pos = [];
-  const ring = i => { const p = pathAt(P*i/n); return profile.map(q => [p.x + p.nx*q[0], H + q[1], p.z + p.nz*q[0]]); };
+/* ---------- sweep cross-sections along a stretch of the line ---------- */
+function sweepM(u0, u1, items, material, part){
+  const n = Math.max(1, Math.ceil((u1-u0)/2.6)), pos = [];
+  const ring = i => { const u = u0 + (u1-u0)*i/n, c = cAt(u);
+    return items.map(it => { const l0 = it.lat ? it.lat(u, c) : 0, pr = typeof it.prof === 'function' ? it.prof(c) : it.prof;
+      return pr.map(q => [c.x + c.nx*(l0+q[0]), c.y + q[1], c.z + c.nz*(l0+q[0])]); }); };
   let a = ring(0);
   for (let i=1; i<=n; i++){ const b = ring(i);
-    for (let j=0; j<m; j++){ const k=(j+1)%m; pos.push(...a[j],...b[j],...b[k], ...a[j],...b[k],...a[k]); }
+    for (let m=0; m<items.length; m++){ const A = a[m], B = b[m], len = A.length;
+      for (let j=0; j<len; j++){ const k=(j+1)%len; pos.push(...A[j],...B[j],...B[k], ...A[j],...B[k],...A[k]); } }
     a = b; }
   const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
   return mesh(g, material, part, scene);
 }
 const rect = (l0,l1,y0,y1) => [[l0,y0],[l1,y0],[l1,y1],[l0,y1]];
-sweep([[-2.2,-.9],[2.2,-.9],[2.2,.3],[1.95,.3],[1.95,0],[-1.95,0],[-1.95,.3],[-2.2,.3]], mat.deck, 'viaduct');
-sweep(rect(.68,.755,0,.18), mat.rail, 'rails'); sweep(rect(-.755,-.68,0,.18), mat.rail, 'rails');
-sweep(rect(-.17,.17,.02,.14), mat.react, 'reaction');
-sweep(rect(-1.25,-1.18,.22,.30), mat.power, 'power'); sweep(rect(-1.25,-1.18,.40,.48), mat.power, 'power');
-
-for (let s=15; s<P; s+=30){
-  const p = pathAt(s), g = new T.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(-p.tz, p.tx); scene.add(g);
-  mesh(new T.CylinderGeometry(.8,.95,H-1.7,14), mat.pier, 'viaduct', g, 0, (H-1.7)/2, 0);
-  mesh(box(1.7,.8,4.6), mat.pier, 'viaduct', g, 0, H-1.3, 0);
+const side = sd => (u, c) => sd*c.w;
+const RAILS = [rect(.68,.755,0,.18), rect(-.755,-.68,0,.18)], REACT = rect(-.17,.17,.02,.14);
+const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.3],[h-.25,.3],[h-.25,0],[-h+.25,0],[-h+.25,.3],[-h,.3]]; };
+const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h,5.4]]; };
+const CH = 65;
+for (let u0=0; u0<LT-1; u0+=CH){
+  const u1 = Math.min(LT, u0+CH), cm = cAt((u0+u1)/2), lo = Math.min(cAt(u0).y, cAt(u1).y);
+  sweepM(u0, u1, [{prof:deckProf}], mat.deck, 'viaduct');
+  const rl = [], rc = [], pw = [];
+  for (const sd of [-1,1]){
+    for (const r of RAILS) rl.push({lat:side(sd), prof:r});
+    rc.push({lat:side(sd), prof:REACT});
+    const a = sd > 0 ? -1.25 : 1.18;   // power rails sit on the inner side, between the tracks
+    pw.push({lat:side(sd), prof:rect(a, a+.07, .22, .30)}, {lat:side(sd), prof:rect(a, a+.07, .40, .48)});
+  }
+  sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); sweepM(u0, u1, pw, mat.power, 'power');
+  if (lo < -.6) sweepM(u0, u1, [{prof:tunProf}], mat.tunnel, 'tunnel');
+  if (cm.y > 4){
+    const g = new T.Group(); g.position.set(cm.x, 0, cm.z); g.rotation.y = -cm.th; scene.add(g);
+    mesh(new T.CylinderGeometry(.9,1.05,cm.y-1.7,14), mat.pier, 'viaduct', g, 0, (cm.y-1.7)/2, 0);
+    mesh(box(1.7,.8,2*(cm.w+2.2)), mat.pier, 'viaduct', g, 0, cm.y-1.3, 0);
+  }
 }
+for (const dir of [1,-1]){ const a = dir > 0 ? uA+60 : uB-140, lat = (u, c) => c.w*(1 - 2*xa(u, dir));
+  sweepM(a, a+80, RAILS.map(r => ({lat, prof:r})), mat.rail, 'rails'); sweepM(a, a+80, [{lat, prof:REACT}], mat.react, 'reaction'); }
 
 /* ---------- ground and a rough city ---------- */
-const ground = new T.Mesh(new T.PlaneGeometry(4000,4000), mat.ground); ground.rotation.x = -PI/2; scene.add(ground);
+let bx0=1e9, bx1=-1e9, bz0=1e9, bz1=-1e9;
+for (let j=0; j<NS; j+=8){ bx0=Math.min(bx0,X[j]); bx1=Math.max(bx1,X[j]); bz0=Math.min(bz0,Z[j]); bz1=Math.max(bz1,Z[j]); }
+const ground = new T.Mesh(new T.PlaneGeometry(40000,40000), mat.ground); ground.rotation.x = -PI/2; ground.position.set((bx0+bx1)/2, 0, (bz0+bz1)/2); scene.add(ground);
 function winTex(lit){
   const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d');
   g.fillStyle = lit ? '#000' : '#cfd6dc'; g.fillRect(0,0,64,64);
@@ -300,132 +390,178 @@ function winTex(lit){
 const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex(true), emissive:0xffffff, emissiveIntensity:0, roughness:.8});
 (() => {
   let seed = 42; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
-  const N = 110, im = new T.InstancedMesh(box(1,1,1), bldMat, N), o = new T.Object3D(), col = new T.Color(); let i = 0;
-  while (i < N){
-    const x = (rnd()-.5)*760, z = (rnd()-.5)*520;
-    const d = Math.abs(x) < L/2 ? Math.min(Math.abs(z-R), Math.abs(z+R)) : Math.abs(Math.hypot(Math.abs(x)-L/2, z) - R);
-    if (d < 24) continue;
-    const w = 12+rnd()*16, dp = 12+rnd()*16, h = 8 + Math.pow(rnd(),2.2)*80;
-    o.position.set(x, h/2, z); o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
+  const N = 1000, im = new T.InstancedMesh(box(1,1,1), bldMat, N), o = new T.Object3D(), col = new T.Color(); let i = 0, tries = 0;
+  while (i < N && tries++ < 20000){
+    const u = rnd()*LT, c = cAt(u), l = (rnd() < .5 ? -1 : 1)*(64 + rnd()*230), x = c.x + c.nx*l, z = c.z + c.nz*l;
+    let ok = true; for (let j=0; j<NS && ok; j+=6){ const dx = X[j]-x, dz = Z[j]-z; if (dx*dx+dz*dz < 3200) ok = false; }
+    if (!ok) continue;
+    const city = Math.exp(-Math.pow((u-stU[11])/1000, 2));
+    const w = 12+rnd()*16, dp = 12+rnd()*16, h = (8 + Math.pow(rnd(),2.2)*45)*(1 + 2.4*city);
+    o.position.set(x, h/2, z); o.rotation.y = -c.th; o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
     im.setColorAt(i, col.setHSL(.58, .08, .62+rnd()*.3)); i++;
   }
-  scene.add(im);
+  im.count = i; im.frustumCulled = false; scene.add(im);
+  // the twin towers beside KLCC station, as a landmark
+  const c = cAt(stU[9]), g = new T.Group(); g.position.set(c.x + c.nx*-110, 0, c.z + c.nz*-110); g.rotation.y = -c.th; scene.add(g);
+  for (const x of [-21,21]){
+    mesh(new T.CylinderGeometry(10,12,130,16), mat.tower, null, g, x, 65, 0); mesh(new T.CylinderGeometry(6.5,10,50,16), mat.tower, null, g, x, 155, 0);
+    mesh(new T.CylinderGeometry(3,6.5,30,12), mat.tower, null, g, x, 195, 0); mesh(new T.CylinderGeometry(.3,2.4,36,8), mat.tower, null, g, x, 228, 0);
+  }
+  mesh(box(42,3.5,3), mat.tower, null, g, 0, 82, 0);
 })();
 
 /* ---------- stations ---------- */
+const kj = i => 'KJ' + (i+1);
 function signTex(name, code){
-  const c = document.createElement('canvas'); c.width = 768; c.height = 144; const g = c.getContext('2d');
-  g.fillStyle = '#fff'; g.fillRect(0,0,768,144); g.fillStyle = '#c2185b'; g.fillRect(0,0,160,144);
-  g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 64px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(code, 80, 76);
-  g.textAlign = 'left'; g.fillStyle = '#14202b'; g.font = '700 80px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 190, 78);
+  const c = document.createElement('canvas'); c.width = 640; c.height = 120; const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0,0,640,120); g.fillStyle = '#c2185b'; g.fillRect(0,0,140,120);
+  g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 52px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(code, 70, 64);
+  g.textAlign = 'left'; g.fillStyle = '#14202b'; g.font = '700 62px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 160, 65, 465);
   return new T.CanvasTexture(c);
 }
-const stations = [{name:'Pasar Seni', code:'KJ14', s:L/2, z:R, rot:0}, {name:'KL Sentral', code:'KJ15', s:L+C+L/2, z:-R, rot:PI}];
-stations.forEach(st => {
-  const g = new T.Group(); g.position.set(0, H, st.z); g.rotation.y = st.rot; scene.add(g);
-  mesh(box(84,1,5), mat.plat, 'station', g, 0, .53, 3.95);
-  mesh(box(84,.02,.35), mat.yellow, null, g, 0, 1.045, 1.75);
-  const rf = mesh(box(84,.18,6), mat.roof, 'station', g, 0, 5.3, 4.2); rf.rotation.x = .07;
-  for (let x=-36; x<=36; x+=12) mesh(cyl(.13,4.3,10), mat.col, 'station', g, x, 3.15, 6.3);
-  mesh(box(84,1.1,.06), mat.col, 'station', g, 0, 1.6, 6.42);
-  for (const x of [-26,26]) mesh(box(1.3,H,1.3), mat.pier, 'station', g, x, -H/2+.03, 4.4);
-  const sm = new T.MeshBasicMaterial({map:signTex(st.name, st.code)});
-  const a = mesh(new T.PlaneGeometry(7,1.3), sm, 'station', g, 0, 4.2, 6.0); a.rotation.y = PI;
-  mesh(new T.PlaneGeometry(7,1.3), sm, 'station', g, 0, 4.2, 6.02);
-  st.label = addLabel(st.name, ''); st.pos = new T.Vector3(0, H+6.6, st.z + (st.rot ? -4 : 4));
+const PL = 76;
+const stations = ST.map((d, i) => {
+  const c = cAt(stU[i]), lv = d[2], w = HALFW[lv], g = new T.Group(); g.position.set(c.x, c.y, c.z); g.rotation.y = -c.th; scene.add(g);
+  const sm = new T.MeshBasicMaterial({map:signTex(d[0], kj(i))});
+  if (lv === 'U'){   // island platform between the tracks, sealed by platform screen doors
+    mesh(box(PL,1,2*(w-1.45)), mat.plat, 'station', g, 0, .53, 0);
+    for (const sd of [-1,1]){
+      mesh(box(PL,2.7,.08), mat.psd, 'psd', g, 0, 2.38, sd*(w-1.5));
+      mesh(box(PL,.12,.3), mat.col, 'psd', g, 0, 3.75, sd*(w-1.5));
+      const s = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 3.1, sd*.03); if (sd < 0) s.rotation.y = PI;
+    }
+    mesh(box(PL,.08,.7), mat.lamp, null, g, 0, 4.7, 0);
+  } else for (const sd of [-1,1]){   // side platforms outside the tracks
+    mesh(box(PL,1,5), mat.plat, 'station', g, 0, .53, sd*(w+3.95));
+    mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w+1.75));
+    const rf = mesh(box(PL,.18,6), mat.roof, 'station', g, 0, 5.3, sd*(w+4.2)); rf.rotation.x = sd*.07;
+    for (let x=-30; x<=30; x+=12) mesh(cyl(.13,4.3,10), mat.col, 'station', g, x, 3.15, sd*(w+6.3));
+    mesh(box(PL,1.1,.06), mat.col, 'station', g, 0, 1.6, sd*(w+6.42));
+    if (c.y > 2) for (const x of [-24,24]) mesh(box(1.3,c.y,1.3), mat.pier, 'station', g, x, -c.y/2+.03, sd*(w+4.4));
+    const a = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 4.2, sd*(w+6.0)); if (sd > 0) a.rotation.y = PI;
+    const b = mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 4.2, sd*(w+6.03)); if (sd < 0) b.rotation.y = PI;
+  }
+  return {i, name:d[0], code:kj(i), lv, x:d[3], u:stU[i], g, c, label:addLabel(d[0], ''), pos:new T.Vector3(c.x, c.y + (lv === 'U' ? 6.4 : 7), c.z)};
 });
+// every stop a train makes on one round trip: down the line, then back
+const stops = [];
+for (let i=0; i<NST; i++) stops.push({q:stU[i]-uA, st:stations[i], term:i === 0 || i === NST-1});
+for (let i=NST-2; i>=1; i--) stops.push({q:P-(stU[i]-uA), st:stations[i], term:false});
 
-/* ---------- train ---------- */
-const CAR = 16.6, GAP = .8, SP = CAR+GAP, BG = 5.6, NCAR = 4, NOSE = 1.6, HALF = 1.5*SP + CAR/2 + NOSE, WR = .28;
+/* ---------- train: four cars, 67.1 m over all, 2.65 m wide ---------- */
+const CAR = 15.5, GAP = .7, SP = CAR+GAP, BG = 5.3, NCAR = 4, NOSE = 1.5, HALF = 1.5*SP + CAR/2 + NOSE, WR = .28;
+const DOORX = [-4.9,0,4.9], BAYS = [[-6.65,1.5],[-2.45,3.1],[2.45,3.1],[6.65,1.5]];
 const bodyGeo = (() => {
-  const s = new T.Shape(); s.moveTo(-1.3,.9); s.lineTo(1.3,.9); s.lineTo(1.3,3.1); s.quadraticCurveTo(1.3,3.45,.95,3.45);
-  s.lineTo(-.95,3.45); s.quadraticCurveTo(-1.3,3.45,-1.3,3.1); s.closePath();
+  const s = new T.Shape(); s.moveTo(-1.325,.9); s.lineTo(1.325,.9); s.lineTo(1.325,3.1); s.quadraticCurveTo(1.325,3.45,.97,3.45);
+  s.lineTo(-.97,3.45); s.quadraticCurveTo(-1.325,3.45,-1.325,3.1); s.closePath();
   return new T.ExtrudeGeometry(s, {depth:CAR, bevelEnabled:false, curveSegments:6});
 })();
 function noseGeo(y0, y1, hw, eps){
   const g = box(NOSE, y1-y0, 2*hw), p = g.attributes.position, cy = (y0+y1)/2;
-  for (let i=0; i<p.count; i++) if (p.getX(i) > 0){ p.setX(i, NOSE/2 + eps - (p.getY(i)+cy-.9)/2.4); p.setZ(i, p.getZ(i)*.84); }
+  for (let i=0; i<p.count; i++) if (p.getX(i) > 0){ p.setX(i, NOSE/2 + eps - (p.getY(i)+cy-.9)/2.6); p.setZ(i, p.getZ(i)*.84); }
   g.computeVertexNormals(); return g;
 }
 function buildBogie(){
   const g = new T.Group(), axles = [], bars = [];
-  mesh(box(2.5,.16,1.3), mat.bogie, 'bogie', g, 0, .56, 0);
-  for (const x of [-.9,.9]){
+  mesh(box(2.6,.16,1.3), mat.bogie, 'bogie', g, 0, .56, 0);
+  for (const x of [-.95,.95]){   // 1.9 m wheelbase
     const ax = new T.Group(); ax.position.set(x, .46, 0); g.add(ax); axles.push(ax);
     mesh(cyl(.06,1.6,8), mat.wheel, 'wheels', ax).rotation.x = PI/2;
     for (const z of [-.7175,.7175]){ mesh(cyl(WR,.11,22), mat.wheel, 'wheels', ax, 0, 0, z).rotation.x = PI/2; mesh(box(.42,.09,.13), mat.hub, 'wheels', ax, 0, 0, z); }
   }
-  mesh(box(1.5,.13,.5), mat.lim, 'lim', g, 0, .265, 0);
+  mesh(box(1.55,.13,.5), mat.lim, 'lim', g, 0, .265, 0);
   for (let j=0; j<7; j++){
     const bm = new T.MeshBasicMaterial({color:0xffa524, transparent:true, opacity:.5, depthWrite:false});
     const b = new T.Mesh(box(.15,.05,.56), bm); b.position.set(-.63 + j*.21, .17, 0); b.visible = false; g.add(b); bars.push(b);
   }
-  for (const y of [.26,.44]) mesh(box(.3,.05,.36), mat.shoe, 'shoes', g, 0, y, -1.0);
-  mesh(box(.12,.3,.12), mat.shoe, 'shoes', g, 0, .4, -.74);
+  for (const sd of [-1,1]){
+    for (const y of [.26,.44]) mesh(box(.3,.05,.36), mat.shoe, 'shoes', g, 0, y, sd*1.0);
+    mesh(box(.12,.3,.12), mat.shoe, 'shoes', g, 0, .4, sd*.74);
+  }
   return {g, axles, bars};
 }
-function buildCar(idx){
+function buildCar(idx, lights){
   const g = new T.Group(), low = new T.Group(), shell = new T.Group(), roof = new T.Group();
-  g.add(low, shell); shell.add(roof);
+  g.rotation.order = 'YZX'; g.add(low, shell); shell.add(roof);
   mesh(box(CAR,.14,2.5), mat.floor, 'interior', low, 0, .97, 0);
-  for (const b of [[-7.1,1.6],[-2.6,3.2],[2.6,3.2],[7.1,1.6]]) for (const sd of [-1,1]) mesh(box(b[1],.45,.5), mat.seat, 'interior', low, b[0], 1.27, sd*.95);
-  for (const x of [-5.2,0,5.2]) mesh(cyl(.025,2.2,6), mat.pole, 'interior', low, x, 2.1, 0);
+  for (const b of BAYS) for (const sd of [-1,1]) mesh(box(b[1]-.1,.45,.5), mat.seat, 'interior', low, b[0], 1.27, sd*.97);
+  for (const x of DOORX) mesh(cyl(.025,2.2,6), mat.pole, 'interior', low, x, 2.1, 0);
   mesh(box(2.6,.5,1), mat.inverter, 'inverter', low, 1.6, .62, .35);
   mesh(box(2,.45,.9), mat.aux, 'aux', low, -1.8, .64, -.3);
   const body = mesh(bodyGeo, mat.body, 'body', shell, -CAR/2, 0, 0); body.rotation.y = PI/2;
-  const doors = [];
+  const doors = {'1':[], '-1':[]};
   for (const sd of [-1,1]){
-    mesh(box(CAR,.28,.02), mat.blue, 'body', shell, 0, 1.5, sd*1.305);
-    mesh(box(CAR,.08,.02), mat.red, 'body', shell, 0, 1.3, sd*1.305);
-    for (const w of [[-7.1,1.6],[-2.6,3.4],[2.6,3.4],[7.1,1.6]]) mesh(box(w[1],.95,.02), mat.glass, 'body', shell, w[0], 2.4, sd*1.306);
-    for (const dx of [-5.2,0,5.2]) for (const dir of [-1,1]){
-      const leaf = mesh(box(.68,1.95,.05), mat.door, 'doors', shell, dx+dir*.35, 2, sd*1.34);
+    mesh(box(CAR,.28,.02), mat.blue, 'body', shell, 0, 1.5, sd*1.33);
+    mesh(box(CAR,.08,.02), mat.red, 'body', shell, 0, 1.3, sd*1.33);
+    for (const w of BAYS) mesh(box(w[1],.95,.02), mat.glass, 'body', shell, w[0], 2.4, sd*1.331);
+    for (const dx of DOORX) for (const dir of [-1,1]){
+      const leaf = mesh(box(.68,1.95,.05), mat.door, 'doors', shell, dx+dir*.35, 2, sd*1.365);
       const gl = new T.Mesh(box(.5,.8,.06), mat.glass); gl.position.y = .4; leaf.add(gl);
-      if (sd === 1) doors.push({leaf, base:dx+dir*.35, dir});
+      doors[sd].push({leaf, base:dx+dir*.35, dir});
     }
   }
-  for (const x of [-4,4]) mesh(box(3.2,.28,1.7), mat.hvac, 'hvac', roof, x, 3.58, 0);
+  for (const x of [-3.8,3.8]) mesh(box(3.2,.28,1.7), mat.hvac, 'hvac', roof, x, 3.58, 0);
   if (idx < NCAR-1) mesh(box(GAP,2.2,2), mat.gang, 'body', shell, -CAR/2-GAP/2, 2.1, 0);
   if (idx === 0 || idx === NCAR-1){
     const n = new T.Group(); n.position.x = (idx === 0 ? 1 : -1)*(CAR/2 + NOSE/2); if (idx) n.rotation.y = PI; shell.add(n);
-    mesh(noseGeo(.9,3.3,1.29,0), mat.nose, 'nose', n, 0, 2.1, 0);
-    mesh(noseGeo(1.95,3.05,1.1,.03), mat.screen, 'nose', n, 0, 2.5, 0);
-    for (const z of [-.8,.8]) mesh(box(.06,.14,.32), idx === 0 ? mat.head : mat.tail, null, n, .65, 1.3, z);
+    mesh(noseGeo(.9,3.3,1.31,0), mat.nose, 'nose', n, 0, 2.1, 0);
+    mesh(noseGeo(1.95,3.05,1.12,.03), mat.screen, 'nose', n, 0, 2.5, 0);
+    for (const z of [-.8,.8]) mesh(box(.06,.14,.32), lights[idx ? 1 : 0], null, n, .62, 1.3, z);
   }
   const bogies = [buildBogie(), buildBogie()]; g.add(bogies[0].g, bogies[1].g);
   scene.add(g);
   return {g, low, shell, roof, bogies, doors, th:0};
 }
 const N_ENV = 36;
-function buildTrain(i, s){
-  const cars = []; for (let c=0; c<NCAR; c++) cars.push(buildCar(c));
+function buildTrain(i, stopIdx){
+  const lights = [new T.MeshBasicMaterial(), new T.MeshBasicMaterial()];
+  const cars = []; for (let c=0; c<NCAR; c++) cars.push(buildCar(c, lights));
   const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.Float32BufferAttribute(new Float32Array((N_ENV+1)*6), 3));
   const ix = []; for (let k=0; k<N_ENV; k++){ const a=k*2; ix.push(a,a+1,a+2, a+1,a+3,a+2); } eg.setIndex(ix);
-  const env = new T.Mesh(eg, new T.MeshBasicMaterial({color:0x22b8ff, transparent:true, opacity:.5, side:T.DoubleSide, depthWrite:false}));
+  const env = new T.Mesh(eg, new T.MeshBasicMaterial({color:0x22b8ff, transparent:true, opacity:.5, side:DS, depthWrite:false}));
   env.frustumCulled = false; scene.add(env);
-  return {i, s, v:0, a:0, state:'run', next:0, timer:0, door:0, doorT:0, thr:0, manual:false, hold:false, prot:false, why:'free', cars, env,
-          label:addLabel('Train '+(i+1), 'train'), roll:0};
+  const dir = stopIdx < NST-1 ? 1 : -1;
+  const tr = {i, q:stops[stopIdx].q, dir, o:dir, v:0, a:0, state:'dwell', next:stopIdx, timer:i*.9, door:1, doorT:1, doorSide:0, thr:0, manual:false, hold:false,
+    prot:false, why:'free', flipAt:-1, dStn:0, cars, env, lights, label:addLabel('Train '+(i+1), 'train'), roll:0, u:0, pos:new T.Vector3()};
+  setDoorSide(tr); setLights(tr); return tr;
 }
-const VMAX = 22.2, VC = 10, ACC = 1.0, B = 1.0;
-const trains = [buildTrain(0, stations[0].s), buildTrain(1, stations[0].s + 300)];
-Object.assign(trains[0], {state:'dwell', door:1, doorT:1, timer:3, next:0});
-trains[1].next = 1; trains[1].v = 15;
-let cur = 0, holdOther = false;
+const sx = tr => tr.dir*tr.o;                      // +1 when car 0 is leading
+function setLights(tr){ const f = sx(tr) > 0; tr.lights[0].color.setHex(f ? 0xfff6d8 : 0xff2a2a); tr.lights[1].color.setHex(f ? 0xff2a2a : 0xfff6d8); }
+function setDoorSide(tr){ tr.doorSide = (stops[tr.next].st.lv === 'U' ? 1 : -1)*sx(tr); }   // island platforms are on the inner side
+const uOf = tr => uA + (tr.dir > 0 ? tr.q : P - tr.q);
 
+const VMAX = 22.2, ACC = 1.0, B = 1.0, ZC = 150;
+const trains = [13, 22, 31, 40, 49, 58, 67, 4].map((s, i) => buildTrain(i, s));
+let cur = 0, holdOther = false, warp = 1;
+
+function flip(tr){
+  tr.dir = -tr.dir; tr.q = stops[tr.next].q; tr.flipAt = tr.next; setLights(tr);
+  if (tr.i === cur && focus && !focus.fixed) setFocus(focus);
+}
+function leaderOf(tr){ let best = null, bd = 1e9; for (const o of trains){ if (o === tr) continue; const d = mod(o.q - tr.q); if (d < bd){ bd = d; best = o; } } return best; }
 function stepTrain(tr, dt){
-  const front = tr.s + HALF; let va = VMAX, why = 'free';
+  const front = tr.q + HALF, uC = uOf(tr); let va = VMAX, why = 'free';
   const lim = (d, vt, w) => { const x = Math.sqrt(vt*vt + 2*B*Math.max(d,0)); if (x < va){ va = x; why = w; } };
-  if (onCurve(front) || onCurve(tr.s - HALF)) lim(0, VC, 'curve'); else lim(distNextCurve(front), VC, 'curve');
-  const ld = trains[(tr.i+1) % trains.length];
-  if (ld !== tr) lim(mod(ld.s - HALF - front) - 14, 0, 'ahead');
-  if (tr.manual){ let best = 1e9; stations.forEach((st,k) => { const d = mod(st.s - tr.s + 5); if (d < best){ best = d; tr.next = k; } }); }
-  let d = mod(stations[tr.next].s - tr.s); if (d > P-6) d -= P;
+  for (let d=-2*HALF; d<=300; d+=12){            // speed limits for curves and crossovers, under the train and ahead
+    const u = uC + tr.dir*(HALF+d); if (u < 0 || u > LT) continue;
+    const k = Math.abs(K[Math.min(NS-1, (u/ds)|0)]); let vt = k ? Math.min(VMAX, Math.sqrt(.9/k)) : VMAX;
+    if (inX(u, tr.dir)) vt = Math.min(vt, 9);
+    if (vt < VMAX) lim(d, vt, 'curve');
+  }
+  for (const o of trains){ if (o === tr) continue;
+    lim(mod(o.q - HALF - front) - 14, 0, 'ahead');
+    for (const qc of [0, LEN]) if (Math.abs(wrap(o.q - qc)) < ZC + HALF){ const rf = wrap(front - qc); if (rf < -ZC) lim(-ZC - 8 - rf, 0, 'ahead'); }
+  }
+  if (tr.manual){ let best = 1e9; stops.forEach((s,k) => { const d = mod(s.q - tr.q + 5); if (d < best){ best = d; tr.next = k; } }); if (tr.next !== tr.flipAt) tr.flipAt = -1; }
+  const stop = stops[tr.next]; let d = mod(stop.q - tr.q); if (d > P-6) d -= P;
+  let dT = mod((tr.dir > 0 ? LEN : 0) - tr.q); if (dT > P-6) dT -= P;
+  if (tr.flipAt < 0 || !stop.term) lim(dT, 0, 'end');
   tr.dStn = d; tr.prot = false;
   if (tr.state === 'run'){
     const v0 = tr.v;
     if (!tr.manual){
       lim(d, 0, 'station');
-      if (d < .3 && tr.v < .9){ tr.v = 0; tr.state = 'dwell'; tr.timer = 0; tr.doorT = 1; }
+      if (d < .3 && tr.v < .9){ tr.v = 0; tr.state = 'dwell'; tr.timer = 0; tr.doorT = 1; setDoorSide(tr); }
       else if (tr.door > .02) tr.v = 0;
       else tr.v = tr.v > va ? Math.max(va, tr.v - 1.4*dt) : Math.min(va, tr.v + ACC*dt);
     } else if (tr.door > .02) tr.v = 0;
@@ -433,55 +569,60 @@ function stepTrain(tr, dt){
       let v = Math.max(0, tr.v + (tr.thr >= 0 ? tr.thr*ACC : tr.thr*1.3)*dt);
       if (v > va){ v = Math.max(va, tr.v - 1.4*dt); tr.prot = tr.thr > -.2; }
       tr.v = v;
+      if (stop.term && v < .05 && Math.abs(d) < 1.5 && tr.flipAt !== tr.next) flip(tr);
     }
-    tr.a = (tr.v - v0)/dt; tr.s = mod(tr.s + tr.v*dt);
+    tr.a = (tr.v - v0)/dt; tr.q = mod(tr.q + tr.v*dt);
   } else {
-    tr.a = 0; tr.timer += dt;
-    if (tr.timer > 7 && !tr.hold) tr.doorT = 0;
-    if (tr.timer > 7 && tr.door < .01 && !tr.hold){ tr.state = 'run'; tr.next = (tr.next+1) % stations.length; }
+    tr.a = 0; tr.timer += dt; const wait = stop.term ? 11 : 7;
+    if (tr.timer > wait && !tr.hold) tr.doorT = 0;
+    if (tr.timer > wait && tr.door < .01 && !tr.hold){ if (stop.term) flip(tr); tr.state = 'run'; tr.next = (tr.next+1) % stops.length; tr.flipAt = -1; }
   }
   tr.door += clamp(tr.doorT - tr.door, -dt/1.4, dt/1.4);
-  tr.why = why; tr.va = va;
+  tr.why = why;
 }
 let explode = 0;
 function poseTrain(tr, dt, time){
-  tr.roll -= tr.v*dt/WR;
-  tr.cars.forEach((c, i) => {
-    const sc = tr.s + (1.5-i)*SP, A = pathAt(sc+BG), Bk = pathAt(sc-BG);
+  const uC = tr.u = uOf(tr);
+  { const p = TP(uC, tr.dir); tr.pos.set(p.x, p.y, p.z); }
+  const far = tr.i !== cur && tr.pos.distanceTo(camera.position) > 1500;
+  tr.roll -= sx(tr)*tr.v*dt/WR;
+  for (let i=0; i<NCAR; i++){
+    const c = tr.cars[i]; c.g.visible = !far; if (far) continue;
+    const uc = uC + tr.o*(1.5-i)*SP, A = TP(uc + tr.o*BG, tr.dir), Bk = TP(uc - tr.o*BG, tr.dir);
     const dx = A.x-Bk.x, dz = A.z-Bk.z, th = Math.atan2(-dz, dx), hd = Math.hypot(dx,dz)/2;
-    c.g.position.set((A.x+Bk.x)/2, H, (A.z+Bk.z)/2); c.g.rotation.y = th; c.th = th;
-    c.bogies[0].g.position.x = hd;  c.bogies[0].g.rotation.y = Math.atan2(-A.tz, A.tx) - th;
-    c.bogies[1].g.position.x = -hd; c.bogies[1].g.rotation.y = Math.atan2(-Bk.tz, Bk.tx) - th;
+    c.g.position.set((A.x+Bk.x)/2, (A.y+Bk.y)/2, (A.z+Bk.z)/2); c.g.rotation.set(0, th, Math.atan2(A.y-Bk.y, 2*hd)); c.th = th;
+    c.bogies[0].g.position.x = hd;  c.bogies[0].g.rotation.y = Math.atan2(-tr.o*Math.sin(A.th), tr.o*Math.cos(A.th)) - th;
+    c.bogies[1].g.position.x = -hd; c.bogies[1].g.rotation.y = Math.atan2(-tr.o*Math.sin(Bk.th), tr.o*Math.cos(Bk.th)) - th;
     c.low.position.y = explode*1.1; c.shell.position.y = explode*3.6; c.roof.position.y = explode*1.3;
-    for (const dr of c.doors) dr.leaf.position.x = dr.base + dr.dir*.66*tr.door;
+    for (const sd of [-1,1]){ const op = sd === tr.doorSide ? tr.door : 0; for (const dr of c.doors[sd]) dr.leaf.position.x = dr.base + dr.dir*.66*op; }
     for (const b of c.bogies){
       for (const ax of b.axles) ax.rotation.z = tr.roll;
       if (layers.power){
         const push = tr.a > .1, regen = tr.a < -.1, amp = push || regen ? 1 : tr.v > .5 ? .35 : .08;
         b.bars.forEach((bar, j) => {
-          const ph = j*1.05 + (regen ? 1 : -1)*time*(4 + tr.v*.5);
+          const ph = sx(tr)*j*1.05 + (regen ? 1 : -1)*time*(4 + tr.v*.5);
           bar.material.opacity = amp*(.15 + .85*Math.max(0, Math.sin(ph)));
           bar.material.color.setHex(regen ? 0x35e08a : 0xffa524);
         });
       }
     }
-  });
-  // reserved stopping space ahead
-  if (layers.signal){
-    const len = tr.v*tr.v/(2*B) + 12, p = tr.env.geometry.attributes.position, s0 = tr.s + HALF;
-    for (let k=0; k<=N_ENV; k++){ const q = pathAt(s0 + len*k/N_ENV);
-      p.setXYZ(k*2, q.x + q.nx*1.05, H+.24, q.z + q.nz*1.05); p.setXYZ(k*2+1, q.x - q.nx*1.05, H+.24, q.z - q.nz*1.05); }
+  }
+  tr.env.visible = layers.signal && !far;
+  if (tr.env.visible){   // reserved stopping space ahead
+    const len = tr.v*tr.v/(2*B) + 12, p = tr.env.geometry.attributes.position;
+    for (let k=0; k<=N_ENV; k++){ const u = clamp(uC + tr.dir*(HALF + len*k/N_ENV), 0, LT), c = cAt(u), l = c.w*(1 - 2*xa(u, tr.dir));
+      p.setXYZ(k*2, c.x + c.nx*(l+1.05), c.y+.24, c.z + c.nz*(l+1.05)); p.setXYZ(k*2+1, c.x + c.nx*(l-1.05), c.y+.24, c.z + c.nz*(l-1.05)); }
     p.needsUpdate = true; tr.env.material.color.setHex(tr.why === 'ahead' ? 0xffb020 : 0x22b8ff);
   }
 }
 
 /* ---------- labels ---------- */
-function addLabel(text, cls){ const d = document.createElement('div'); d.className = 'lbl ' + cls; d.textContent = text; stage.appendChild(d); return d; }
+function addLabel(text, cls){ const d = document.createElement('div'); d.className = 'lbl ' + cls; d.textContent = text; d.hidden = true; stage.appendChild(d); return d; }
 const tmp = new T.Vector3();
 function placeLabel(el, v, show){
-  tmp.copy(v).project(camera);
-  const ok = show && tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05;
-  el.hidden = !ok; if (!ok) return;
+  let ok = show && v.distanceTo(camera.position) < 750;
+  if (ok){ tmp.copy(v).project(camera); ok = tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05; }
+  if (el.hidden === ok) el.hidden = !ok; if (!ok) return;
   el.style.transform = `translate(${((tmp.x+1)/2*stage.clientWidth).toFixed(1)}px,${((1-tmp.y)/2*stage.clientHeight).toFixed(1)}px) translate(-50%,-100%)`;
 }
 
@@ -492,13 +633,13 @@ function setLayer(k, on){
   if (k === 'xray') shellMats.forEach(m => { m.transparent = on; m.opacity = on ? (m === mat.glass || m === mat.screen ? .1 : .16) : 1; m.depthWrite = !on; m.needsUpdate = true; });
   if (k === 'power'){
     trains.forEach(t => t.cars.forEach(c => c.bogies.forEach(b => b.bars.forEach(x => x.visible = on))));
-    mat.power.userData.baseE = on ? 0xff7a00 : 0; mat.power.userData.baseI = on ? .9 : 1; restore(mat.power);
+    mat.power.userData.baseE = on ? 0xff7a00 : 0; mat.power.userData.baseI = on ? .9 : 1; if (sel !== 'power') restore(mat.power);
   }
-  if (k === 'signal') trains.forEach(t => t.env.visible = on);
 }
 ['xray','explode','power','signal'].forEach(k => $('l-'+k).addEventListener('change', e => setLayer(k, e.target.checked)));
 
 /* ---------- theme: day in light mode, night in dark mode ---------- */
+let sel = null;
 function restore(m){ m.emissive.setHex(m.userData.baseE); m.emissiveIntensity = m.userData.baseI; }
 function isDark(){ const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
 function applyTheme(){
@@ -508,8 +649,10 @@ function applyTheme(){
   sun.intensity = dk ? .28 : .55; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
   mat.ground.color.setHex(dk ? 0x1c2a25 : 0x9fb58f);
   bldMat.emissiveIntensity = dk ? .9 : 0; bldMat.color.setHex(dk ? 0x5a6470 : 0xffffff);
-  for (const m of [mat.glass, mat.screen]){ m.userData.baseE = dk ? 0xffdca0 : 0; m.userData.baseI = dk ? .55 : 1; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); }
-  mat.roof.userData.baseE = dk ? 0xfff0cc : 0; mat.roof.userData.baseI = dk ? .25 : 1; if (sel !== 'station') restore(mat.roof);
+  const set = (m, e, i) => { m.userData.baseE = e; m.userData.baseI = i; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); };
+  for (const m of [mat.glass, mat.screen]) set(m, dk ? 0xffdca0 : 0, dk ? .55 : 1);
+  set(mat.roof, dk ? 0xfff0cc : 0, dk ? .25 : 1); set(mat.tower, dk ? 0xbfd4ff : 0, dk ? .35 : 1);
+  set(mat.tunnel, dk ? 0x4a4436 : 0x2a3038, 1); set(mat.plat, dk ? 0x2a2a26 : 0, 1);
 }
 new MutationObserver(applyTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
@@ -518,29 +661,34 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme
 const cam = {tgt:new T.Vector3(), off:new T.Vector3(), dist:46, pol:1.15, az:0, wDist:46, wPol:1.15, wAz:0, lastTh:null, cab:false};
 let focus = null;
 const want = new T.Vector3();
+// train-relative views are written for "car 0 leading, platform on the far side" and mirrored to match the train
+function carOf(f){ const tr = trains[cur], s = sx(tr), n = f.car == null ? 1 : f.car; return tr.cars[s > 0 ? n : NCAR-1-n]; }
 function resolveFocus(f, out){
   if (f.fixed){ out.copy(f.fixed); return null; }
-  const c = trains[cur].cars[f.car == null ? 1 : f.car]; c.g.updateMatrixWorld();
-  out.set(f.off[0], f.off[1], f.off[2]); c.g.localToWorld(out); return c.th;
+  const s = sx(trains[cur]), c = carOf(f); c.g.updateMatrixWorld();
+  out.set(f.off[0]*s, f.off[1], f.off[2]*-s); c.g.localToWorld(out); return c.th;
 }
 function setFocus(f){
   const old = want.clone().add(cam.off);
   focus = f; cam.cab = !!f.cab; cam.lastTh = null;
   const th = resolveFocus(f, want);
-  cam.off.copy(old).sub(want); if (reduced || cam.off.length() > 500) cam.off.set(0,0,0);
-  cam.wDist = f.dist; cam.wPol = f.pol; cam.wAz = (th || 0) + f.az;
+  cam.off.copy(old).sub(want); if (reduced || cam.off.length() > 400) cam.off.set(0,0,0);
+  cam.wDist = f.dist; cam.wPol = f.pol;
+  if (th == null) cam.wAz = f.az;
+  else { const s = sx(trains[cur]), ph = PI/2 - f.az; cam.wAz = th + PI/2 - Math.atan2(-s*Math.sin(ph), s*Math.cos(ph)); }
   let d = cam.wAz - cam.az; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.az = cam.wAz - d;
   if (reduced){ cam.dist = cam.wDist; cam.pol = cam.wPol; cam.az = cam.wAz; }
 }
+const stnFocus = (st, dist, pol) => ({fixed:new T.Vector3(st.c.x, st.c.y+2, st.c.z), dist:dist||50, pol:pol||1.05, az:PI/2 - st.c.th + .9});
 const CAMS = {
-  follow:  {car:1, off:[0,2,0], dist:46, pol:1.15, az:PI+.6},
-  under:   {car:1, off:[BG,.45,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}},
-  cab:     {car:0, off:[0,2,0], dist:46, pol:1.15, az:PI+.6, cab:true},
-  station: {fixed:new T.Vector3(0,H+2,R+2), dist:48, pol:1.2, az:PI-.5},
-  all:     {fixed:new T.Vector3(0,H,0), dist:330, pol:.85, az:PI+.25},
+  follow:  () => ({car:1, off:[0,2,0], dist:46, pol:1.15, az:PI+.6}),
+  under:   () => ({car:1, off:[BG,.45,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}}),
+  cab:     () => ({car:0, off:[0,2,0], dist:46, pol:1.15, az:PI+.6, cab:true}),
+  station: () => stnFocus(stops[trains[cur].next].st),
+  bird:    () => ({car:1, off:[0,0,0], dist:480, pol:.5, az:PI+.4}),
 };
 function setCam(name){
-  const f = CAMS[name]; if (f.layers) for (const k in f.layers) setLayer(k, f.layers[k]);
+  const f = CAMS[name](); if (f.layers) for (const k in f.layers) setLayer(k, f.layers[k]);
   setFocus(f); markCam(name);
 }
 function markCam(name){ document.querySelectorAll('#cams .chip').forEach(b => b.setAttribute('aria-pressed', b.dataset.cam === name)); }
@@ -552,13 +700,14 @@ function updateCamera(dt){
   const k = 1 - Math.exp(-dt*5);
   cam.off.multiplyScalar(1-k); cam.dist += (cam.wDist-cam.dist)*k; cam.pol += (cam.wPol-cam.pol)*k; cam.az += (cam.wAz-cam.az)*k;
   cam.tgt.copy(want).add(cam.off);
+  { const m = mat.ground, to = cam.tgt.y < -.5 ? .16 : 1; m.opacity += (to - m.opacity)*(reduced ? 1 : k); const dw = m.opacity > .97; if (m.depthWrite !== dw){ m.depthWrite = dw; m.needsUpdate = true; } }
   if (cam.cab){
-    const tr = trains[cur], c = tr.cars[0]; c.g.updateMatrixWorld();
-    camera.position.set(CAR/2 + NOSE + .4, 2.7, 0); c.g.localToWorld(camera.position);
-    const q = pathAt(tr.s + HALF + 28); camera.lookAt(q.x, H+2, q.z); return;
+    const tr = trains[cur], s = sx(tr), c = tr.cars[s > 0 ? 0 : NCAR-1]; c.g.updateMatrixWorld();
+    camera.position.set(s*(CAR/2 + NOSE + .4), 2.7, 0); c.g.localToWorld(camera.position);
+    const q = TP(clamp(tr.u + tr.dir*(HALF+28), 0, LT), tr.dir); camera.lookAt(q.x, q.y+2, q.z); return;
   }
-  const sp = Math.sin(cam.pol);
-  camera.position.set(cam.tgt.x + cam.dist*sp*Math.sin(cam.az), Math.max(.6, cam.tgt.y + cam.dist*Math.cos(cam.pol)), cam.tgt.z + cam.dist*sp*Math.cos(cam.az));
+  const sp = Math.sin(cam.pol); let y = cam.tgt.y + cam.dist*Math.cos(cam.pol); if (cam.tgt.y > 1) y = Math.max(.8, y);
+  camera.position.set(cam.tgt.x + cam.dist*sp*Math.sin(cam.az), y, cam.tgt.z + cam.dist*sp*Math.cos(cam.az));
   camera.lookAt(cam.tgt);
 }
 const ptrs = new Map(); let moved = 0, pinch = 0;
@@ -567,60 +716,63 @@ canvas.addEventListener('pointermove', e => {
   const p = ptrs.get(e.pointerId); if (!p) return;
   const dx = e.clientX-p.x, dy = e.clientY-p.y; p.x = e.clientX; p.y = e.clientY; moved += Math.abs(dx)+Math.abs(dy);
   if (ptrs.size === 1 && !cam.cab){ cam.wAz -= dx*.006; cam.wPol = clamp(cam.wPol - dy*.005, .12, 1.72); }
-  else if (ptrs.size === 2){ const a = [...ptrs.values()], d = Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); if (pinch) cam.wDist = clamp(cam.wDist*pinch/d, 2.5, 600); pinch = d; }
+  else if (ptrs.size === 2){ const a = [...ptrs.values()], d = Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); if (pinch) cam.wDist = clamp(cam.wDist*pinch/d, 2.5, 900); pinch = d; }
 });
 const up = e => { const had = ptrs.size; ptrs.delete(e.pointerId); pinch = 0; if (had === 1 && moved < 7 && e.type === 'pointerup') pickAt(e); };
 canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
-canvas.addEventListener('wheel', e => { e.preventDefault(); cam.wDist = clamp(cam.wDist*Math.exp(e.deltaY*.0012), 2.5, 600); }, {passive:false});
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.wDist = clamp(cam.wDist*Math.exp(e.deltaY*.0012), 2.5, 900); }, {passive:false});
 
 const ray = new T.Raycaster(), ndc = new T.Vector2();
 function pickAt(e){
   const r = canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height*2-1));
   ray.setFromCamera(ndc, camera);
-  const skip = layers.xray ? ['body','nose','doors','hvac'] : [];
-  const hit = ray.intersectObjects(pick, false).find(h => !skip.includes(h.object.userData.part));
+  const skip = layers.xray ? ['body','nose','doors','hvac','psd'] : ['psd'];
+  const hit = ray.intersectObjects(pick, false).find(h => h.object.visible && !skip.includes(h.object.userData.part));
   if (hit) selectPart(hit.object.userData.part, false);
 }
 
 /* ---------- the parts ---------- */
 const front = [CAR/2+5, .2, 0];
 const INFO = {
-  body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell. Four cars are joined by open walk-through gangways, so the whole train is one long room.',
-    more:'Light matters here. The lighter the body, the less energy every start and stop costs, and this train starts and stops every couple of minutes.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
+  body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell, 2.65 metres wide. Four cars make a train about 67 metres long, joined by open gangways so the whole thing is one long room.',
+    more:'These are Innovia Metro trains, built by Bombardier (now Alstom). The line also runs older two-car sets of the same family. Light matters: this train starts and stops every couple of minutes, and every start costs energy.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
   nose:{g:'train', name:'Front end, with no cab', what:'There is no driver, so there is no driver\'s cab. The front is a passenger window. You can stand right at the nose and watch the track come at you.',
-    more:'A small locked panel hides manual controls that staff can use to move the train by hand if they ever need to.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
-  doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors along the platform side. They unlock only when the train has fully stopped and is lined up with the platform.',
-    more:'Doors and motor are tied together by an interlock. While any door reports open, the train cannot take power. Try it: switch to driving it yourself, open the doors and push the throttle.', f:{car:1, off:[0,2,1.3], dist:26, pol:1.25, az:PI+.4, layers:{xray:false}}},
+    more:'Both ends are the same, because at the end of the line the train simply sets off the other way. Watch the headlights and tail lights swap at Gombak or Putra Heights.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
+  doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors on both sides. Only the platform side opens: the outside at most stations, the inside at the underground ones, where the platform sits between the tracks.',
+    more:'Doors and motor are tied together by an interlock. While any door reports open, the train cannot take power. Try it: drive it yourself, open the doors and push the throttle.', f:{car:1, off:[0,2,1.3], dist:26, pol:1.25, az:PI+.4, layers:{xray:false}}},
   interior:{g:'train', name:'Inside', bm:'Tempat duduk', what:'Seats run along the walls, which leaves the middle clear for standing. Poles and a level floor from end to end.',
     more:'The floor sits at platform height, so there is no step. Everything heavy lives under the floor or on the roof to keep this space open.', f:{car:1, off:[0,1.6,0], dist:13, pol:.95, az:PI+.35, layers:{xray:true}}},
-  hvac:{g:'train', name:'Air-conditioning units', bm:'Penyaman udara', what:'Two roof-mounted units per car. In Kuala Lumpur heat they are among the hungriest things on the train after the motors.',
-    more:'They run from the auxiliary power supply under the floor, not straight from the power rail.', f:{car:1, off:[4,3.6,0], dist:11, pol:.8, az:PI+.6}},
+  hvac:{g:'train', name:'Air-conditioning units', bm:'Penyaman udara', what:'Roof-mounted units on every car. In Kuala Lumpur heat they are among the hungriest things on the train after the motors.',
+    more:'They run from the auxiliary power supply under the floor, not straight from the power rail.', f:{car:1, off:[3.8,3.6,0], dist:11, pol:.8, az:PI+.6}},
   bogie:{g:'train', name:'Bogie', bm:'Bogi', what:'The wheeled frame under each end of a car. It swivels under the body so a long car can bend its way through a curve.',
-    more:'On this type of train the two axles in a bogie can also steer a little, each one pointing along the curve. That cuts the squeal and the wear on tight city bends. Watch a bogie as the train goes round the end of the loop.', f:{car:1, off:[BG,.5,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}}},
+    more:'On this type of train the two axles in a bogie can also steer a little, each one pointing along the curve. That cuts the squeal and the wear on tight city bends. The axles sit 1.9 metres apart.', f:{car:1, off:[BG,.5,0], dist:6.5, pol:1.3, az:PI+.45, layers:{xray:true}}},
   wheels:{g:'train', name:'Wheels and axles', bm:'Roda', what:'Plain steel wheels on steel rails. The odd thing is that nothing turns them. They carry the weight and keep the train on the track, and that is all.',
     more:'On most trains the motor spins the wheels and the wheels grip the rail. Here the pushing is done by the flat motor below, so wet rails and steep ramps are much less of a problem.', f:{car:1, off:[BG+.9,.45,-.4], dist:4.5, pol:1.3, az:PI+.5, layers:{xray:true}}},
-  lim:{g:'train', name:'Linear induction motor', bm:'Motor aruhan linear', what:'The flat copper-coloured slab slung under each bogie. Picture an ordinary electric motor sliced open and unrolled flat.',
+  lim:{g:'train', name:'Linear induction motor', bm:'Motor aruhan linear', what:'The flat copper-coloured slab slung under each bogie, rated 155 kilowatts. Picture an ordinary electric motor sliced open and unrolled flat.',
     more:'Its coils make a magnetic wave that travels along the slab. The wave grabs the metal strip in the track below and pulls the train along it. No shaft, no gears, nothing spinning, nothing touching. Turn on Power flow to see the wave.', f:{car:1, off:[BG,.3,0], dist:4.6, pol:1.3, az:PI+.3, layers:{xray:true, power:true}}},
   inverter:{g:'train', name:'Propulsion inverter', what:'A box of power electronics under the floor. The rail supplies steady electricity, but the motor needs a wave. This box builds the wave.',
     more:'It can make the wave faster, slower or run it backwards. Change the wave and you change how the train moves, so this box is really the throttle and the brake pedal.', f:{car:1, off:[1.6,.6,0], dist:6.5, pol:1.32, az:PI-.4, layers:{xray:true}}},
   aux:{g:'train', name:'Auxiliary power and batteries', what:'Turns rail power into gentler supplies for lights, air-conditioning, doors and the onboard computers.',
     more:'Batteries keep the essentials alive, such as emergency lights, radio and door controls, if rail power drops out.', f:{car:1, off:[-1.8,.6,0], dist:6.5, pol:1.32, az:PI+.4, layers:{xray:true}}},
   shoes:{g:'train', name:'Collector shoes', what:'Sprung metal pads that reach sideways from the bogie and slide along the power rails, picking up electricity as the train moves.',
-    more:'One shoe rides the positive rail and one the negative. Every bogie has a set, so the train stays powered across short gaps in the rails.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
-  power:{g:'track', name:'Power rails', what:'Two electrified rails running beside the track, fed with 750 volts of direct current from substations along the line.',
-    more:'One carries current out to the train and the other carries it back. On most railways the return path is the running rails; here it gets a rail of its own. This is why nobody walks on the track.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
-  reaction:{g:'track', name:'Reaction rail', what:'The flat, aluminium-topped strip lying between the running rails. It is the other half of the motor, and it never moves.',
-    more:'The magnetic wave from the slab on the train grips this strip from about a finger-width above and shoves against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
+    more:'There are shoes on both sides of every bogie, so the train can pick up power whichever side the rail is on and coast across short gaps.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
+  power:{g:'track', name:'Power rails', what:'Electrified rails beside the track, fed with 750 volts of direct current from 14 substations along the line. This is why nobody walks on the track.',
+    more:'This family of trains normally uses a pair of power rails, one out and one back, which is what the model shows. I could not confirm the exact arrangement on this line from published sources.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
+  reaction:{g:'track', name:'Reaction rail', what:'The flat aluminium strip lying between the running rails. It is the other half of the motor, and it never moves.',
+    more:'The magnetic wave from the slab on the train grips this strip from just above and pulls against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
   rails:{g:'track', name:'Running rails', bm:'Landasan', what:'Two steel rails, 1,435 millimetres apart. That is standard gauge, the same spacing most metros in the world use.',
-    more:'They carry and guide the train. Unusually, they do no electrical work and take no driving force from the wheels.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
-  viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Most of the line rides on a concrete deck above the roads, held up by single columns. Under the city centre it dives into tunnels.',
+    more:'They carry and guide the train. There are two tracks, and trains keep to the left, the same as Malaysian roads.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
+  viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Of the 37 stations, 31 are up on a concrete viaduct above the roads. Only Sri Rampai sits at ground level.',
     more:'Being off the street is what makes driverless running practical. Nothing else shares the track, so a computer always knows what is on it.', f:{car:1, off:[0,-2,0], dist:42, pol:1.66, az:PI+.5}},
-  station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. The train stops at the same marks every time, within a hand-width or so.',
-    more:'The two names here, Pasar Seni and KL Sentral, are real neighbouring stations on the line. The little loop joining them is made up.', f:{fixed:new T.Vector3(0,H+2,R+2), dist:48, pol:1.2, az:PI-.5}},
+  tunnel:{g:'track', name:'Tunnel', bm:'Terowong', what:'Under the city centre the line dives underground for five stations: Ampang Park, KLCC, Kampung Baru, Dang Wangi and Masjid Jamek.',
+    more:'The model cuts the ground away so you can watch the train inside. The ramps here are far steeper than the real ones, because the distances are squashed.', f:{fixed:(() => { const c = cAt((stU[9]+stU[10])/2); return new T.Vector3(c.x, c.y+2, c.z); })(), dist:44, pol:1.3, az:1}},
+  station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. Elevated stations have a platform on each side of the tracks. Underground ones have a single island in the middle.',
+    more:'The train stops at the same marks every time, so doors line up with the same spots on the platform. See the Line tab for all 37 stations.', f:stnFocus(stations[13])},
+  psd:{g:'track', name:'Platform screen doors', what:'At the five underground stations a glass wall runs from floor to ceiling along the platform edge, with doors that open only when a train is stopped behind them.',
+    more:'They keep people and air-conditioned air on the platform side. They only work because the train stops in exactly the same place every time.', f:stnFocus(stations[9], 20, 1.3)},
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
-    more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
+    more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
-let sel = null;
 function selectPart(key, fly){
   if (sel && parts[sel]) parts[sel].forEach(restore);
   sel = key; const p = INFO[key];
@@ -637,15 +789,15 @@ for (const key in INFO){
 
 /* ---------- how it runs ---------- */
 const STEPS = [
-  {t:'Electricity arrives from the side', d:'Substations feed two power rails beside the track. Collector shoes on every bogie slide along them and bring the power on board.', part:'shoes', layers:{power:true, xray:true, explode:false}},
+  {t:'Electricity arrives from the side', d:'Substations feed power rails beside the track. Collector shoes on every bogie slide along them and bring the power on board.', part:'shoes', layers:{power:true, xray:true, explode:false}},
   {t:'A box under the floor reshapes it', d:'Rail power is steady. The motor needs a wave. The inverter builds that wave and can speed it up, slow it down or reverse it.', part:'inverter', layers:{xray:true}},
-  {t:'A motor with no spinning parts pushes', d:'The wave runs along the flat motor. It grips the reaction rail lying in the track and drags the train forward, floating a finger-width above it. Amber glow means pushing.', part:'lim', layers:{power:true, xray:true}},
+  {t:'A motor with no spinning parts pushes', d:'The wave runs along the flat motor. It grips the reaction rail lying in the track and drags the train forward, floating just above it. Amber glow means pushing.', part:'lim', layers:{power:true, xray:true}},
   {t:'The wheels only carry and steer', d:'Nothing drives the wheels, so the train does not depend on grip. It climbs steep ramps and pulls away cleanly in the rain, and the steering axles take tight curves quietly.', part:'wheels', layers:{xray:true}},
   {t:'Nobody is driving', d:'Each train reports its position and gets back a limit: you may go this far. The strip ahead of the train is that limit. It grows with speed and stops short of the train in front.', part:'signal', layers:{signal:true, xray:false, explode:false}},
   {t:'Braking gives power back', d:'To slow down, the wave is run slower than the train, so it drags backwards. The motor becomes a generator and the energy goes back into the rails for other trains. Green glow means braking. Friction brakes finish the stop and hold the train still.', part:'lim', layers:{power:true, xray:true}},
-  {t:'Doors, a pause, and off again', d:'The train stops on its mark and the doors unlock. While they are open the motor is locked out. Doors close, the computers hand over a fresh limit, and the cycle starts again.', part:'doors', layers:{xray:false, explode:false}},
+  {t:'Doors, a pause, and off again', d:'The train stops on its mark and the doors unlock. While they are open the motor is locked out. Doors close, the computers hand over a fresh limit, and the cycle starts again. At the last station it does the same thing, then leaves the way it came and crosses to the other track.', part:'doors', layers:{xray:false, explode:false}},
 ];
-STEPS.forEach((s, i) => {
+STEPS.forEach(s => {
   const li = document.createElement('li'), b = document.createElement('button');
   b.innerHTML = '<span class="t"></span><span class="d"></span>'; b.children[0].textContent = s.t; b.children[1].textContent = s.d;
   b.addEventListener('click', () => {
@@ -656,29 +808,50 @@ STEPS.forEach((s, i) => {
   li.appendChild(b); $('steps').appendChild(li);
 });
 
+/* ---------- the line list ---------- */
+stations.forEach(st => {
+  const li = document.createElement('li'), b = document.createElement('button'); if (st.lv === 'U') li.className = 'under';
+  b.innerHTML = '<span class="code"></span><span class="nm"><span></span><small></small></span><span class="mk"></span>';
+  b.children[0].textContent = st.code; b.children[1].children[0].textContent = st.name;
+  b.children[1].children[1].textContent = LVNAME[st.lv] + (st.x ? ' · change for ' + st.x : '');
+  b.addEventListener('click', () => { setFocus(stnFocus(st)); markCam(''); });
+  li.appendChild(b); $('linelist').appendChild(li); st.li = li; st.mk = b.children[2];
+});
+function updateLine(){
+  const marks = stations.map(() => '');
+  trains.forEach(t => { let bi = 0, bd = 1e9; stU.forEach((u, i) => { const d = Math.abs(u - t.u); if (d < bd){ bd = d; bi = i; } });
+    marks[bi] += (marks[bi] ? ' ' : '') + (t.dir > 0 ? '▼' : '▲') + (t.i+1) + (t.i === cur ? '•' : ''); });
+  const nx = stops[trains[cur].next].st;
+  stations.forEach((st, i) => { setText(st.mk, marks[i]); const c = (st.lv === 'U' ? 'under' : '') + (st === nx ? ' next' : ''); if (st.li.className !== c) st.li.className = c; });
+}
+
 /* ---------- panel, tabs, driving ---------- */
+const TABS = ['parts','how','line','ctl'];
 function showTab(name){
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name));
-  for (const n of ['parts','how','ctl']) $('pane-'+n).hidden = n !== name;
+  for (const n of TABS) $('pane-'+n).hidden = n !== name;
 }
 document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => { showTab(b.dataset.tab); $('panel').classList.remove('min'); }));
 $('fold').addEventListener('click', () => { const m = $('panel').classList.toggle('min'); $('fold').textContent = m ? '▴' : '▾'; });
 function seg(id, attr, fn){ $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
   $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); fn(b.dataset[attr]); }); }
 function setManual(on){
-  trains.forEach(t => { if (t.manual && t.door > 0) t.doorT = t.state === 'dwell' ? t.doorT : 0; t.manual = false; t.thr = 0; });
-  trains[cur].manual = on; $('manual').hidden = !on; $('thr').value = 0;
-  if (on && trains[cur].state === 'dwell'){ trains[cur].state = 'run'; }
+  trains.forEach(t => { if (t.manual && t.door > 0) t.doorT = 0; t.manual = false; t.thr = 0; });
+  const t = trains[cur]; t.manual = on; $('manual').hidden = !on; $('thr').value = 0;
+  if (on && t.state === 'dwell') t.state = 'run';
 }
-seg('which', 't', v => { const man = trains[cur].manual; cur = +v; setManual(man); $('hudname').textContent = 'Train ' + (cur+1); cam.lastTh = null; });
+trains.forEach(t => { const o = document.createElement('option'); o.value = t.i; o.textContent = 'Train ' + (t.i+1); $('which').appendChild(o); });
+$('which').addEventListener('change', e => { const man = trains[cur].manual; cur = +e.target.value; setManual(man); $('hudname').textContent = 'Train ' + (cur+1);
+  if (focus && !focus.fixed) setFocus(focus); else setCam('follow'); });
 seg('mode', 'm', v => setManual(v === 'man'));
+seg('warp', 'x', v => { warp = +v; });
 $('thr').addEventListener('input', e => { trains[cur].thr = e.target.value/100; });
-$('doorbtn').addEventListener('click', () => { const t = trains[cur]; t.doorT = t.doorT ? 0 : 1; });
+$('doorbtn').addEventListener('click', () => { const t = trains[cur]; if (!t.doorT) setDoorSide(t); t.doorT = t.doorT ? 0 : 1; });
 $('hold').addEventListener('change', e => { holdOther = e.target.checked; });
 
 function setText(el, s){ if (el.textContent !== s) el.textContent = s; }
 function updateHud(){
-  const t = trains[cur], kmh = Math.round(t.v*3.6), st = stations[t.next].name;
+  const t = trains[cur], kmh = Math.round(t.v*3.6), st = stops[t.next].st.name;
   setText($('spd').firstChild, String(kmh)); $('bar').firstElementChild.style.width = (t.v/VMAX*100).toFixed(0) + '%';
   let s;
   if (t.door > .02) s = (t.doorT ? 'Doors open at ' : 'Doors closing at ') + st;
@@ -686,13 +859,14 @@ function updateHud(){
   else if (t.v < .05) s = t.why === 'ahead' ? 'Waiting for the train ahead' : 'Stopped';
   else if (t.manual) s = 'You are driving';
   else if (t.why === 'ahead') s = 'Holding back, train ahead';
-  else if (t.why === 'station') s = 'Stopping at ' + st;
+  else if (t.why === 'station' || t.why === 'end') s = 'Stopping at ' + st;
   else if (t.why === 'curve') s = 'Easing through the curve';
-  else s = t.a > .1 ? 'Pulling away' : 'Top speed, next stop ' + st;
+  else s = t.a > .1 ? 'Pulling away, next stop ' + st : 'Top speed, next stop ' + st;
   setText($('status'), s);
   const pw = $('pwr'), c = t.a > .1 ? 'draw' : t.a < -.1 ? 'regen' : '';
   setText(pw, c === 'draw' ? 'Drawing power from the rails' : c === 'regen' ? 'Feeding power back to the rails' : t.v > .5 ? 'Holding speed' : 'Motor locked out');
   if (pw.className !== c) pw.className = c;
+  setText($('toward'), 'Towards ' + (t.dir > 0 ? 'Putra Heights' : 'Gombak'));
   if (t.manual){
     const ok = t.v < .05 && Math.abs(t.dStn) < 4; $('doorbtn').disabled = !ok && !t.doorT;
     setText($('doorbtn'), t.doorT ? 'Close doors' : ok ? 'Open doors' : 'Doors locked until stopped at a platform');
@@ -702,23 +876,28 @@ function updateHud(){
 /* ---------- loop ---------- */
 function resize(){ const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(stage); resize();
-applyTheme(); setLayer('signal', true);
+applyTheme();
+{ const p = TP(uOf(trains[0]), 1); camera.position.set(p.x, p.y+20, p.z); }
 trains.forEach(t => poseTrain(t, 0, 0));
-focus = CAMS.follow; { const th = resolveFocus(focus, want); cam.az = cam.wAz = th + focus.az; }
-const lp = new T.Vector3(); let last = performance.now(), time = 0;
+focus = CAMS.follow(); setFocus(focus); cam.off.set(0,0,0); cam.az = cam.wAz; cam.dist = cam.wDist; cam.pol = cam.wPol;
+let last = performance.now(), time = 0, lineT = 0;
 function frame(now){
   const dt = Math.min(.05, (now-last)/1000); last = now; time += dt;
   explode += ((layers.explode ? 1 : 0) - explode) * (reduced ? 1 : 1 - Math.exp(-dt*4));
-  trains.forEach(t => { t.hold = holdOther && t.i !== cur; stepTrain(t, Math.max(dt, 1e-4)); });
-  trains.forEach(t => poseTrain(t, dt, time));
+  const lead = holdOther ? leaderOf(trains[cur]) : null;
+  for (let n=0; n<warp; n++) trains.forEach(t => { t.hold = t === lead; stepTrain(t, Math.max(dt, 1e-4)); });
+  trains.forEach(t => poseTrain(t, dt*warp, time));
   if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
   updateCamera(dt); updateHud();
+  if ((lineT -= dt) < 0){ lineT = .5; updateLine(); }
+  stations.forEach(st => { st.g.visible = st.pos.distanceTo(camera.position) < 1700; placeLabel(st.label, st.pos, !cam.cab); });
   renderer.render(scene, camera);
-  stations.forEach(st => placeLabel(st.label, st.pos, !cam.cab));
-  trains.forEach(t => { const c = t.cars[1].g.position; lp.set(c.x, H+4.6+explode*5, c.z); placeLabel(t.label, lp, layers.signal && !cam.cab && cam.dist > 20); });
+  trains.forEach(t => { tmp2.set(t.pos.x, t.pos.y+4.6+explode*5, t.pos.z); placeLabel(t.label, tmp2, layers.signal && !cam.cab && cam.dist > 20); });
   requestAnimationFrame(frame);
 }
+const tmp2 = new T.Vector3();
 requestAnimationFrame(frame);
+window.lrtDebug = {trains, stops, P, LEN, HALF, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
 })();
 </script>
 </body>
