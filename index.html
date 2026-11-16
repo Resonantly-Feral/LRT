@@ -1048,7 +1048,7 @@ function pickVoices(){
 }
 try { speechSynthesis.addEventListener('voiceschanged', pickVoices); } catch (e) {}
 function say(parts){   // parts: [['ms', text], ['en', text]], each read by a voice for that language
-  try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+  try { if (!('speechSynthesis' in window)) return; if (speechSynthesis.pending) speechSynthesis.cancel();   // let the current line finish; only clear a backlog
     parts.forEach(p => { const u = new SpeechSynthesisUtterance(p[1]), v = p[0] === 'ms' ? vMs : vEn;
       if (v){ u.voice = v; u.lang = v.lang; } else u.lang = p[0] === 'ms' ? 'ms-MY' : 'en-GB';
       u.rate = .9; speechSynthesis.speak(u); });
