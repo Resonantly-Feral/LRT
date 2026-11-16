@@ -382,7 +382,7 @@ const mat = {
   body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x0a4fa3), red: M('body', 0xd3202f),
   glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xdfe5ea, {roughness:.4}),
   nose: M('nose', 0xf4f6f8, {roughness:.45}), screen: M('nose', 0x101820, {roughness:.15, metalness:.4}),
-  floor: M('interior', 0x8d98a3), seat: M('interior', 0x2a62b8), pole: M('interior', 0xe9c53a, {metalness:.5, roughness:.35}),
+  floor: M('interior', 0x5b6068), seat: M('interior', 0xd8352a), pole: M('interior', 0xc9ced3, {metalness:.8, roughness:.3}),
   bogie: M('bogie', 0x3a424b, {metalness:.4}), wheel: M('wheels', 0x9aa4ad, {metalness:.8, roughness:.3}), hub: M('wheels', 0x2b3138),
   lim: M('lim', 0xb86a2b, {metalness:.5, roughness:.45}), shoe: M('shoes', 0xd8a31a, {metalness:.5}),
   inverter: M('inverter', 0x56636f, {metalness:.3}), aux: M('aux', 0x6f7b70, {metalness:.3}),
@@ -489,9 +489,9 @@ const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex
 const kj = i => 'KJ' + (i+1);
 function signTex(name, code){
   const c = document.createElement('canvas'); c.width = 640; c.height = 120; const g = c.getContext('2d');
-  g.fillStyle = '#fff'; g.fillRect(0,0,640,120); g.fillStyle = '#c2185b'; g.fillRect(0,0,140,120);
+  g.fillStyle = '#1d3f94'; g.fillRect(0,0,640,120); g.fillStyle = '#c2185b'; g.fillRect(0,0,140,120);
   g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 52px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(code, 70, 64);
-  g.textAlign = 'left'; g.fillStyle = '#14202b'; g.font = '700 62px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 160, 65, 465);
+  g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = '700 62px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 160, 65, 465);
   return new T.CanvasTexture(c);
 }
 const PL = 76;
@@ -905,7 +905,7 @@ const INFO = {
     more:'Both ends are the same, because at the end of the line the train simply sets off the other way. Watch the headlights and tail lights swap at Gombak or Putra Heights.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
   doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors on both sides. Only the platform side opens. Some stations have a platform on each side of the tracks, others have one island in the middle, so the train has to know which side to open.',
     more:'Doors and motor are tied together by an interlock. While any door reports open, the train cannot take power. Try it: drive it yourself, open the doors and push the throttle.', f:{car:1, off:[0,2,1.3], dist:26, pol:1.25, az:PI+.4, layers:{xray:false}}},
-  interior:{g:'train', name:'Inside', bm:'Tempat duduk', what:'Seats run along the walls, which leaves the middle clear for standing. Poles and a level floor from end to end.',
+  interior:{g:'train', name:'Inside', bm:'Tempat duduk', what:'Red seats along the walls leave the middle clear for standing, with steel poles and hanging straps down the car and a level floor from end to end.',
     more:'The floor sits at platform height, so there is no step. Everything heavy lives under the floor or on the roof to keep this space open.', f:{car:1, off:[0,1.6,0], dist:13, pol:.95, az:PI+.35, layers:{xray:true}}},
   hvac:{g:'train', name:'Air-conditioning units', bm:'Penyaman udara', what:'Roof-mounted units on every car. In Kuala Lumpur heat they are among the hungriest things on the train after the motors.',
     more:'They run from the auxiliary power supply under the floor, not straight from the power rail.', f:{car:1, off:[3.8,3.6,0], dist:11, pol:.8, az:PI+.6}},
