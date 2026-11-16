@@ -395,7 +395,8 @@ const mat = {
   deck: M('viaduct', 0xb8bcc0, {roughness:.95, side:DS}), pier: M('viaduct', 0xa9aeb3, {roughness:.95}),
   rail: M('rails', 0x7e8890, {metalness:.8, roughness:.35, side:DS}),
   react: M('reaction', 0xd9dee3, {metalness:.9, roughness:.25, side:DS}),
-  power: M('power', 0x3d4248, {metalness:.6, roughness:.45, side:DS}), cover: M('power', 0xd6a226, {roughness:.8, side:DS}),
+  power: M('power', 0x3d4248, {metalness:.6, roughness:.45, side:DS}), pipe: M('cables', 0x8b9096, {metalness:.5, roughness:.5, side:DS}),
+  fence: M('station', 0x2f8f5b, {roughness:.6}), mesh: M('station', 0x2f8f5b, {transparent:true, opacity:.22, depthWrite:false, side:DS}), cover: M('power', 0xd6a226, {roughness:.8, side:DS}),
   walk: M('walkway', 0xa57a4c, {roughness:.9, metalness:.2, side:DS}), panel: M('panels', 0xa8463c, {roughness:.9}),
   tunnel: M('tunnel', 0x8a9098, {roughness:1, side:T.BackSide}),
   plat: M('station', 0xdcdcd4, {roughness:.85}), roof: M('station', 0x59626b, {roughness:.5, side:DS, transparent:true, opacity:.3, depthWrite:false}),
@@ -411,8 +412,8 @@ const shellMats = [mat.body, mat.blue, mat.red, mat.glass, mat.door, mat.nose, m
 
 const detail = new T.Group(), ovg = new T.Group(); ovg.visible = false; scene.add(detail, ovg);   // close-up track, and the far-away map
 /* ---------- sweep cross-sections along a stretch of the line ---------- */
-function sweepM(u0, u1, items, material, part, parent){
-  const n = Math.max(1, Math.ceil((u1-u0)/2.6)), pos = [];
+function sweepM(u0, u1, items, material, part, parent, step){
+  const n = Math.max(1, Math.ceil((u1-u0)/(step || 2.6))), pos = [];
   const ring = i => { const u = u0 + (u1-u0)*i/n, c = cAt(u);
     return items.map(it => { const l0 = it.lat ? it.lat(u, c) : 0, pr = typeof it.prof === 'function' ? it.prof(c) : it.prof;
       return pr.map(q => [c.x + c.nx*(l0+q[0]), c.y + q[1], c.z + c.nz*(l0+q[0])]); }); };
@@ -427,7 +428,8 @@ function sweepM(u0, u1, items, material, part, parent){
 const rect = (l0,l1,y0,y1) => [[l0,y0],[l1,y0],[l1,y1],[l0,y1]];
 const side = sd => (u, c) => sd*c.w;
 const RAILS = [rect(.68,.755,0,.18), rect(-.755,-.68,0,.18)], REACT = rect(-.26,.26,.02,.14);
-const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.3],[h-.25,.3],[h-.25,0],[-h+.25,0],[-h+.25,.3],[-h,.3]]; };
+const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.62],[h-.25,.62],[h-.25,0],[-h+.25,0],[-h+.25,.62],[-h,.62]]; };
+const pipeItems = [-1,1].flatMap(sd => [.3,.46].map(y => ({prof:c => { const h = c.w + 2.0; return sd > 0 ? rect(h-.11,h,y-.055,y+.055) : rect(-h,-h+.11,y-.055,y+.055); }})));
 const TUBE = Array.from({length:14}, (_, k) => { const an = -PI/2 + k*2*PI/14; return [2.55*Math.cos(an), 1.9 + 2.55*Math.sin(an)]; });
 const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h,5.4]]; };
 const CH = 65;
@@ -446,6 +448,7 @@ for (let u0=0; u0<LT-1; u0+=CH){
   sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); if (!gap) sweepM(u0, u1, pw, mat.power, 'power');
   const um = (u0+u1)/2, nearStn = stU.some(s => Math.abs(s - um) < 75);
   if (nearStn && !gap) sweepM(u0, u1, [-1,1].map(sd => ({lat:side(sd), prof:(sd > 0) !== outer ? rect(-1.42,-1.12,.52,.58) : rect(1.12,1.42,.52,.58)})), mat.cover, 'power');
+  if (!under && !nearStn) sweepM(u0, u1, pipeItems, mat.pipe, 'cables', null, 6.5);
   if (lo > -.6 && cm.w < 2.4 && cAt(u0).w < 2.4 && cAt(u1).w < 2.4) sweepM(u0, u1, [{prof:rect(-.5,.5,.78,.9)}, {prof:rect(-.06,.06,0,.78)}], mat.walk, 'walkway');
   if (under) sweepM(u0, u1, box_ ? [{prof:tunProf}] : [-1,1].map(sd => ({lat:side(sd), prof:TUBE})), mat.tunnel, 'tunnel');
   if (cm.y > 4){
@@ -506,6 +509,14 @@ function signTex(name, code){
   return new T.CanvasTexture(c);
 }
 const PL = 76;
+function tileTex(){ const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d');
+  g.fillStyle = '#e7e4d9'; g.fillRect(0,0,96,96); g.strokeStyle = '#bdb9ab'; g.lineWidth = 2; for (let k=0; k<=96; k+=32){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,96); g.moveTo(0,k); g.lineTo(96,k); g.stroke(); }
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(42, 3); return t; }
+function latticeTex(){ const c = document.createElement('canvas'); c.width = 192; c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#8c9197'; g.fillRect(0,0,192,128); g.strokeStyle = '#e2b93b'; g.lineWidth = 9;
+  for (let k=-128; k<=320; k+=48){ g.beginPath(); g.moveTo(k,0); g.lineTo(k+128,128); g.moveTo(k+128,0); g.lineTo(k,128); g.stroke(); }
+  g.strokeRect(4,4,184,120); return new T.CanvasTexture(c); }
+mat.tile = M('station', 0xffffff, {roughness:.8, map:tileTex()});
 function ledTex(text){   // red dot-matrix departure board, as on the real platforms
   const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d');
   g.fillStyle = '#120606'; g.fillRect(0,0,512,64); g.fillStyle = '#ff3b2f'; g.font = '700 40px "Courier New", monospace'; g.textBaseline = 'middle'; g.fillText(text, 14, 34);
@@ -514,7 +525,8 @@ function ledTex(text){   // red dot-matrix departure board, as on the real platf
 const LED = {'-1':ledTex('ke PUTRA HEIGHTS'), '1':ledTex('ke GOMBAK')};   // the -1 side track runs towards Putra Heights
 const dangerMat = new T.MeshBasicMaterial({map:textTex([['DILARANG MELINTAS TREK', '900 30px Arial'], ['DO NOT CROSS TRACK', '700 22px Arial'], ['BAHAYA  DANGER', '900 30px Arial'], ['TREK VOLTAN TINGGI', '900 28px Arial'], ['HIGH VOLTAGE TRACK', '700 22px Arial']], 512, 256, '#f2c200', '#1a1a1a', '')});
 function dangerSign(g){   // on the fence between the tracks at side-platform stations
-  mesh(box(3.3,1.7,.06), mat.col, 'station', g, 12, 1.85, 0);
+  mesh(box(PL,1.15,.03), mat.mesh, 'station', g, 0, 1.5, 0); for (const y of [.95,2.08]) mesh(box(PL,.07,.07), mat.fence, 'station', g, 0, y, 0);
+  mesh(box(3.3,1.7,.06), mat.fence, 'station', g, 12, 1.85, 0);
   for (const s of [-1,1]){ const m = mesh(new T.PlaneGeometry(3.2,1.6), dangerMat, null, g, 12, 1.85, s*.04); if (s < 0) m.rotation.y = PI; }
 }
 function stationKit(g, w, lv, zBoard){
@@ -528,7 +540,7 @@ const stations = ST.map((d, i) => {
   const sm = new T.MeshBasicMaterial({map:signTex(d.n, kj(i))});
   if (d.pl === 'I'){   // island platform between the tracks
     const pw = 2*(w-1.45);
-    mesh(box(PL,1,pw), mat.plat, 'station', g, 0, .53, 0);
+    mesh(box(PL,1,pw), mat.tile, 'station', g, 0, .53, 0);
     for (const sd of [-1,1]){
       const s = lv === 'U' ? mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 3.1, sd*.03) : mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 7.1, sd*.06); if (sd < 0) s.rotation.y = PI;
       if (lv === 'U'){   // underground: sealed by floor-to-ceiling platform screen doors
@@ -547,7 +559,7 @@ const stations = ST.map((d, i) => {
     mesh(box(PL,.18,2*(w+6.9)), mat.roof, 'station', g, 0, 5.75, 0);
     for (let x=-36; x<=36; x+=12) mesh(box(.3,.3,2*(w+6.9)), mat.truss, 'station', g, x, 5.5, 0);
     for (const sd of [-1,1]){   // side platforms outside the tracks
-    mesh(box(PL,1,5), mat.plat, 'station', g, 0, .53, sd*(w+3.95));
+    mesh(box(PL,1,5), mat.tile, 'station', g, 0, .53, sd*(w+3.95));
     mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w+1.75));
     for (let x=-36; x<=36; x+=12) mesh(cyl(.17,4.5,10), mat.truss, 'station', g, x, 3.25, sd*(w+6.3));
     mesh(box(PL,1.1,.06), mat.col, 'station', g, 0, 1.6, sd*(w+6.42));
@@ -561,10 +573,12 @@ const stations = ST.map((d, i) => {
 { // yellow AWAS / CAUTION patches on the platform at each door, one instanced mesh for the whole line
   const am = new T.MeshBasicMaterial({map:textTex([['AWAS', '900 46px Arial'], ['CAUTION', '900 40px Arial']], 256, 128, '#f2c200', '#1a1a1a', '')});
   const im = new T.InstancedMesh(new T.PlaneGeometry(1.5,.85), am, stations.length*24), o = new T.Object3D(); o.rotation.order = 'YXZ'; let k = 0;
+  const lm = new T.InstancedMesh(new T.PlaneGeometry(2.6,1.5), new T.MeshBasicMaterial({map:latticeTex()}), stations.length*24);
   stations.forEach(st => { const c = st.c, w = HALFW[st.pl];
     for (const sd of [-1,1]) for (let i=0; i<4; i++) for (const dx of [-4.9,0,4.9]){ const x = (1.5-i)*16.2 + dx, lat = sd*(st.pl === 'I' ? w-2.1 : w+2.1);
-      o.position.set(c.x + c.tx*x + c.nx*lat, c.y + 1.062, c.z + c.tz*x + c.nz*lat); o.rotation.set(-PI/2, -c.th + (sd*(st.pl === 'I' ? -1 : 1) > 0 ? 0 : PI), 0); o.updateMatrix(); im.setMatrixAt(k++, o.matrix); } });
-  im.frustumCulled = false; scene.add(im); }
+      o.position.set(c.x + c.tx*x + c.nx*lat, c.y + 1.062, c.z + c.tz*x + c.nz*lat); o.rotation.set(-PI/2, -c.th + (sd*(st.pl === 'I' ? -1 : 1) > 0 ? 0 : PI), 0); o.updateMatrix(); im.setMatrixAt(k, o.matrix);
+      const l2 = sd*(st.pl === 'I' ? w-3.35 : w+3.35); o.position.set(c.x + c.tx*x + c.nx*l2, c.y + 1.058, c.z + c.tz*x + c.nz*l2); o.updateMatrix(); lm.setMatrixAt(k++, o.matrix); } });
+  im.frustumCulled = lm.frustumCulled = false; scene.add(im, lm); }
 // every stop a train makes on one round trip: down the line, then back
 const stops = [];
 for (let i=0; i<NST; i++) stops.push({q:stU[i]-uA, st:stations[i], term:i === 0 || i === NST-1});
@@ -983,6 +997,8 @@ const INFO = {
     more:'They keep anything dropped from the platform out of the track bed and make the danger zone obvious. Away from stations the track is open, and you can see the rail fastenings bolted straight to the concrete.', f:stnFocus(stations[13], 16, 1.25)},
   walkway:{g:'track', name:'Emergency walkway', what:'A raised metal walkway runs between the two tracks, about level with the train floor. If a train has to be emptied between stations, this is how people walk out.',
     more:'It only appears where the tracks run close together. Where they spread apart for an island platform, or split into separate tunnels, it is left out of the model.', f:{car:0, off:[CAR/2+9,.9,-2.2], dist:9, pol:1.15, az:PI/2+.7}},
+  cables:{g:'track', name:'Cable pipes', what:'Grey pipes clipped to the inside of the parapet wall, running the whole length of the viaduct. They carry the cables that keep the line talking to itself: signalling, power control and communications.',
+    more:'They sit on the wall, out of the way of the track, so they can be reached without touching the rails. The model leaves them out at stations and in the tunnels.', f:{car:0, off:[CAR/2+9,.5,2.2], dist:7, pol:1.2, az:PI/2-.7}},
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
     more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac. Operators have described it as allowing a train every 90 seconds, with a safety gap of 30 to 100 metres.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
