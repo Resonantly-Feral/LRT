@@ -1083,11 +1083,21 @@ $('doorbtn').addEventListener('click', () => { const t = trains[cur]; if (!t.doo
 $('hold').addEventListener('change', e => { holdOther = e.target.checked; });
 
 let actx = null, soundOn = false, ledKey = '', ledTrain = -1;
-function chime(up){
-  if (!actx) return; const t0 = actx.currentTime;
-  (up ? [784, 988] : [988, 784]).forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(), s = t0 + i*.28;
-    o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.18, s+.02); g.gain.exponentialRampToValueAtTime(.001, s+.6);
-    o.connect(g); g.connect(actx.destination); o.start(s); o.stop(s+.65); });
+// Three separate cues, following a written description of the real ones. The PITCHES AND THE CHIME'S NOTES ARE PLACEHOLDERS:
+// nobody has measured them yet. Retune here once the reference recordings have been analysed.
+const SND = {door:880, doorLen:.2, closeGap:.34, chime:[659, 784, 988], chimeStep:.3, chimeLen:.75, level:.16};
+function beep(freq, at, len){   // a bright, rounded electronic tone: quick onset, short decay
+  if (!actx) return; const s = actx.currentTime + at, g = actx.createGain(); g.connect(actx.destination);
+  g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(SND.level, s + .008); g.gain.exponentialRampToValueAtTime(.001, s + len);
+  for (const p of [[1, 'sine', 1], [2, 'sine', .18]]){ const o = actx.createOscillator(), m = actx.createGain(); o.type = p[1]; o.frequency.value = freq*p[0]; m.gain.value = p[2]; o.connect(m); m.connect(g); o.start(s); o.stop(s + len + .05); }
+}
+function playDoorOpen(at){ beep(SND.door, at || 0, SND.doorLen); }                                            // one short beep
+function playDoorClose(at){ beep(SND.door, at || 0, SND.doorLen); beep(SND.door, (at || 0) + SND.closeGap, SND.doorLen); }   // two beeps with a pause
+function playStationChime(at){ SND.chime.forEach((f, k) => beep(f, (at || 0) + k*SND.chimeStep, SND.chimeLen)); return SND.chime.length*SND.chimeStep + .35; }   // its own melody, before the voice
+let sayTimer = 0, lastDoorT = -1, doorTrain = -1;
+function doorCues(t){   // called every frame for the train being followed
+  if (t.i !== doorTrain){ doorTrain = t.i; lastDoorT = t.doorT; return; }
+  if (t.doorT !== lastDoorT){ lastDoorT = t.doorT; if (soundOn) (t.doorT ? playDoorOpen : playDoorClose)(0); }
 }
 let vMs = null, vEn = null, voiceNote = '';
 function pickVoices(){
@@ -1110,8 +1120,8 @@ function say(parts){   // parts: [['ms', text], ['en', text]], each read by a vo
 $('snd').addEventListener('click', () => {
   soundOn = !soundOn; $('snd').setAttribute('aria-pressed', soundOn); $('snd').textContent = soundOn ? 'Sound on' : 'Sound off';
   pickVoices();
-  if (soundOn){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} chime(true); }
-  else try { speechSynthesis.cancel(); } catch (e) {}
+  if (soundOn){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} playDoorOpen(0); }
+  else { clearTimeout(sayTimer); try { speechSynthesis.cancel(); } catch (e) {} }
 });
 let eggTaps = 0, eggAt = 0, eggUntil = 0;
 $('led').addEventListener('click', () => { const now = performance.now(); eggTaps = now - eggAt < 1500 ? eggTaps + 1 : 1; eggAt = now; if (eggTaps >= 5){ eggTaps = 0; eggUntil = now + 7000; } });
@@ -1122,8 +1132,12 @@ function updateLed(t){
   setText($('led'), msg);
   const key = (at ? 'a' : 'n') + t.next;
   if (key !== ledKey || t.i !== ledTrain){
-    if (soundOn && t.i === ledTrain){ chime(at); say(at ? [['ms', name]].concat(stop.term && t.state === 'dwell' ? [['en', 'This is the last stop.']] : stop.st.x ? [['en', 'Interchange station for ' + stop.st.x + '.']] : [])
-        : [['ms', 'Stesen berikutnya, ' + name + '.'], ['en', 'Next station, ' + name + '.']]); }
+    if (soundOn && t.i === ledTrain){   // door beep first (from doorCues), then the chime, then the voice
+      const parts = at ? [['ms', name]].concat(stop.term && t.state === 'dwell' ? [['en', 'This is the last stop.']] : stop.st.x ? [['en', 'Interchange station for ' + stop.st.x + '.']] : [])
+        : [['ms', 'Stesen berikutnya, ' + name + '.'], ['en', 'Next station, ' + name + '.']];
+      const lead = at ? .45 : .1, len = playStationChime(lead);
+      clearTimeout(sayTimer); sayTimer = setTimeout(() => { if (soundOn) say(parts); }, (lead + len)*1000);
+    }
     ledKey = key; ledTrain = t.i;
   }
 }
@@ -1144,7 +1158,7 @@ function updateHud(){
   const pw = $('pwr'), c = t.a > .1 ? 'draw' : t.a < -.1 ? 'regen' : '';
   setText(pw, c === 'draw' ? 'Drawing power from the rails' : c === 'regen' ? 'Feeding power back to the rails' : t.v > .5 ? 'Holding speed' : 'Motor locked out');
   if (pw.className !== c) pw.className = c;
-  updateLed(t);
+  updateLed(t); doorCues(t);
   setText($('toward'), 'Towards ' + (t.dir > 0 ? 'Putra Heights' : 'Gombak'));
   if (t.manual){
     const ok = t.v < .05 && Math.abs(t.dStn) < 4; $('doorbtn').disabled = !ok && !t.doorT;
