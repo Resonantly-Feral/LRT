@@ -379,7 +379,7 @@ const box = (w,h,d) => new T.BoxGeometry(w,h,d);
 const cyl = (r,h,n) => new T.CylinderGeometry(r,r,h,n||16);
 const DS = T.DoubleSide;
 const mat = {
-  body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x0a4fa3), red: M('body', 0xd3202f),
+  body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x1f33a8, {roughness:.4}), red: M('body', 0xd3202f),
   glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xdfe5ea, {roughness:.4}),
   nose: M('nose', 0xf4f6f8, {roughness:.45}), screen: M('nose', 0x101820, {roughness:.15, metalness:.4}),
   floor: M('interior', 0x5b6068), seat: M('interior', 0xd8352a), pole: M('interior', 0xc9ced3, {metalness:.8, roughness:.3}),
@@ -390,9 +390,11 @@ const mat = {
   deck: M('viaduct', 0xb8bcc0, {roughness:.95, side:DS}), pier: M('viaduct', 0xa9aeb3, {roughness:.95}),
   rail: M('rails', 0x7e8890, {metalness:.8, roughness:.35, side:DS}),
   react: M('reaction', 0xd9dee3, {metalness:.9, roughness:.25, side:DS}),
-  power: M('power', 0xe07b1a, {metalness:.3, roughness:.5, side:DS}),
+  power: M('power', 0x3d4248, {metalness:.6, roughness:.45, side:DS}), cover: M('power', 0xd6a226, {roughness:.8, side:DS}),
+  walk: M('walkway', 0xa57a4c, {roughness:.9, metalness:.2, side:DS}), panel: M('panels', 0xa8463c, {roughness:.9}),
   tunnel: M('tunnel', 0x8a9098, {roughness:1, side:T.BackSide}),
-  plat: M('station', 0xc9ced3, {roughness:.9}), roof: M('station', 0xdfe8ee, {roughness:.3, side:DS, transparent:true, opacity:.34, depthWrite:false}),
+  plat: M('station', 0xdcdcd4, {roughness:.85}), roof: M('station', 0x59626b, {roughness:.5, side:DS, transparent:true, opacity:.3, depthWrite:false}),
+  truss: M('station', 0xf1f3f4, {roughness:.5}),
   col: M('station', 0x8e99a3, {metalness:.4}),
   psd: M('psd', 0x9fd0e6, {roughness:.1, metalness:.2, transparent:true, opacity:.32, depthWrite:false, side:DS}),
   lamp: new T.MeshBasicMaterial({color:0xfff3d6}),
@@ -419,7 +421,7 @@ function sweepM(u0, u1, items, material, part, parent){
 }
 const rect = (l0,l1,y0,y1) => [[l0,y0],[l1,y0],[l1,y1],[l0,y1]];
 const side = sd => (u, c) => sd*c.w;
-const RAILS = [rect(.68,.755,0,.18), rect(-.755,-.68,0,.18)], REACT = rect(-.17,.17,.02,.14);
+const RAILS = [rect(.68,.755,0,.18), rect(-.755,-.68,0,.18)], REACT = rect(-.26,.26,.02,.14);
 const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.3],[h-.25,.3],[h-.25,0],[-h+.25,0],[-h+.25,.3],[-h,.3]]; };
 const TUBE = Array.from({length:14}, (_, k) => { const an = -PI/2 + k*2*PI/14; return [2.55*Math.cos(an), 1.9 + 2.55*Math.sin(an)]; });
 const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h,5.4]]; };
@@ -436,6 +438,9 @@ for (let u0=0; u0<LT-1; u0+=CH){
     pw.push({lat:side(sd), prof:rect(a, a+.07, .22, .30)}, {lat:side(sd), prof:rect(a, a+.07, .40, .48)});
   }
   sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); sweepM(u0, u1, pw, mat.power, 'power');
+  const um = (u0+u1)/2, nearStn = stU.some(s => Math.abs(s - um) < 75);
+  if (nearStn) sweepM(u0, u1, [-1,1].map(sd => ({lat:side(sd), prof:sd > 0 ? rect(-1.42,-1.12,.52,.58) : rect(1.12,1.42,.52,.58)})), mat.cover, 'power');
+  if (lo > -.6 && cm.w < 2.4 && cAt(u0).w < 2.4 && cAt(u1).w < 2.4) sweepM(u0, u1, [{prof:rect(-.5,.5,.78,.9)}, {prof:rect(-.06,.06,0,.78)}], mat.walk, 'walkway');
   if (under) sweepM(u0, u1, box_ ? [{prof:tunProf}] : [-1,1].map(sd => ({lat:side(sd), prof:TUBE})), mat.tunnel, 'tunnel');
   if (cm.y > 4){
     const g = new T.Group(); g.position.set(cm.x, 0, cm.z); g.rotation.y = -cm.th; detail.add(g);
@@ -495,6 +500,18 @@ function signTex(name, code){
   return new T.CanvasTexture(c);
 }
 const PL = 76;
+function ledTex(text){   // red dot-matrix departure board, as on the real platforms
+  const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d');
+  g.fillStyle = '#120606'; g.fillRect(0,0,512,64); g.fillStyle = '#ff3b2f'; g.font = '700 40px "Courier New", monospace'; g.textBaseline = 'middle'; g.fillText(text, 14, 34);
+  return new T.MeshBasicMaterial({map:new T.CanvasTexture(c)});
+}
+const LED = {'-1':ledTex('ke PUTRA HEIGHTS'), '1':ledTex('ke GOMBAK')};   // the -1 side track runs towards Putra Heights
+function stationKit(g, w, lv, zBoard){
+  for (const sd of [-1,1]){
+    for (const o of [-.47,.47]) mesh(box(PL+8,.07,.36), mat.panel, 'panels', g, 0, .05, sd*w + o);
+    for (const r of [PI/2,-PI/2]){ const m = mesh(new T.PlaneGeometry(5.6,.7), LED[sd], null, g, -14, lv === 'U' ? 3.5 : 4.3, sd*zBoard); m.rotation.y = r; m.position.x += r > 0 ? .03 : -.03; }
+  }
+}
 const stations = ST.map((d, i) => {
   const c = cAt(stU[i]), lv = d.lv, w = HALFW[d.pl], g = new T.Group(); g.position.set(c.x, c.y, c.z); g.rotation.y = -c.th; scene.add(g);
   const sm = new T.MeshBasicMaterial({map:signTex(d.n, kj(i))});
@@ -502,28 +519,32 @@ const stations = ST.map((d, i) => {
     const pw = 2*(w-1.45);
     mesh(box(PL,1,pw), mat.plat, 'station', g, 0, .53, 0);
     for (const sd of [-1,1]){
-      const s = lv === 'U' ? mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 3.1, sd*.03) : mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 6.6, sd*.06); if (sd < 0) s.rotation.y = PI;
+      const s = lv === 'U' ? mesh(new T.PlaneGeometry(6,1.12), sm, 'station', g, 0, 3.1, sd*.03) : mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 7.1, sd*.06); if (sd < 0) s.rotation.y = PI;
       if (lv === 'U'){   // underground: sealed by floor-to-ceiling platform screen doors
         mesh(box(PL,2.7,.08), mat.psd, 'psd', g, 0, 2.38, sd*(w-1.5)); mesh(box(PL,.12,.3), mat.col, 'psd', g, 0, 3.75, sd*(w-1.5));
       } else mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w-1.75));
     }
     if (lv === 'U') mesh(box(PL,.08,.7), mat.lamp, null, g, 0, 4.7, 0);
     else {
-      mesh(box(PL,.18,pw+1.6), mat.roof, 'station', g, 0, 5.3, 0); mesh(box(10.2,2.05,.1), mat.col, 'station', g, 0, 6.6, 0);
-      for (let x=-30; x<=30; x+=12) mesh(cyl(.15,4.3,10), mat.col, 'station', g, x, 3.15, 0);
+      mesh(box(PL,.18,2*(w+2.6)), mat.roof, 'station', g, 0, 5.75, 0); mesh(box(10.2,2.05,.1), mat.col, 'station', g, 0, 7.1, 0);
+      for (let x=-36; x<=36; x+=12) mesh(box(.3,.3,2*(w+2.6)), mat.truss, 'station', g, x, 5.5, 0);
+      for (let x=-36; x<=36; x+=12) mesh(cyl(.17,4.5,10), mat.truss, 'station', g, x, 3.25, 0);
       if (c.y > 2) for (const x of [-24,24]) mesh(box(1.5,c.y,1.5), mat.pier, 'station', g, x, -c.y/2+.03, 0);
     }
-  } else for (const sd of [-1,1]){   // side platforms outside the tracks
+    stationKit(g, w, lv, w-2.4);
+  } else { stationKit(g, w, lv, w+2.4);
+    mesh(box(PL,.18,2*(w+6.9)), mat.roof, 'station', g, 0, 5.75, 0);
+    for (let x=-36; x<=36; x+=12) mesh(box(.3,.3,2*(w+6.9)), mat.truss, 'station', g, x, 5.5, 0);
+    for (const sd of [-1,1]){   // side platforms outside the tracks
     mesh(box(PL,1,5), mat.plat, 'station', g, 0, .53, sd*(w+3.95));
     mesh(box(PL,.02,.35), mat.yellow, null, g, 0, 1.045, sd*(w+1.75));
-    const rf = mesh(box(PL,.18,6), mat.roof, 'station', g, 0, 5.3, sd*(w+4.2)); rf.rotation.x = sd*.07;
-    for (let x=-30; x<=30; x+=12) mesh(cyl(.13,4.3,10), mat.col, 'station', g, x, 3.15, sd*(w+6.3));
+    for (let x=-36; x<=36; x+=12) mesh(cyl(.17,4.5,10), mat.truss, 'station', g, x, 3.25, sd*(w+6.3));
     mesh(box(PL,1.1,.06), mat.col, 'station', g, 0, 1.6, sd*(w+6.42));
     if (c.y > 2) for (const x of [-24,24]) mesh(box(1.3,c.y,1.3), mat.pier, 'station', g, x, -c.y/2+.03, sd*(w+4.4));
-    mesh(box(10.2,2.05,.1), mat.col, 'station', g, 0, 6.75, sd*(w+6.3));
-    const a = mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 6.75, sd*(w+6.24)); if (sd > 0) a.rotation.y = PI;
-    const b = mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 6.75, sd*(w+6.36)); if (sd < 0) b.rotation.y = PI;
-  }
+    mesh(box(10.2,2.05,.1), mat.col, 'station', g, 0, 7.1, sd*(w+6.3));
+    const a = mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 7.1, sd*(w+6.24)); if (sd > 0) a.rotation.y = PI;
+    const b = mesh(new T.PlaneGeometry(10,1.875), sm, 'station', g, 0, 7.1, sd*(w+6.36)); if (sd < 0) b.rotation.y = PI;
+  } }
   return {i, name:d.n, code:kj(i), lv, pl:d.pl, x:d.x, u:stU[i], g, c, label:addLabel(d.n, ''), pos:new T.Vector3(c.x, c.y + (lv === 'U' ? 6.4 : 9.4), c.z), term:i === 0 || i === NST-1};
 });
 // every stop a train makes on one round trip: down the line, then back
@@ -576,7 +597,7 @@ function buildBogie(){
     mesh(cyl(.06,1.6,8), mat.wheel, 'wheels', ax).rotation.x = PI/2;
     for (const z of [-.7175,.7175]){ mesh(cyl(WR,.11,22), mat.wheel, 'wheels', ax, 0, 0, z).rotation.x = PI/2; mesh(box(.42,.09,.13), mat.hub, 'wheels', ax, 0, 0, z); }
   }
-  mesh(box(1.55,.13,.5), mat.lim, 'lim', g, 0, .265, 0);
+  mesh(box(1.55,.13,.56), mat.lim, 'lim', g, 0, .265, 0);
   for (let j=0; j<7; j++){
     const bm = new T.MeshBasicMaterial({color:0xffa524, transparent:true, opacity:.5, depthWrite:false});
     const b = new T.Mesh(box(.15,.05,.56), bm); b.position.set(-.63 + j*.21, .17, 0); b.visible = false; g.add(b); bars.push(b);
@@ -588,7 +609,7 @@ function buildBogie(){
   return {g, axles, bars};
 }
 function buildCar(idx, lights, n){
-  n = n || NCAR;
+  n = n || NCAR; const n4 = n === NCAR;
   const g = new T.Group(), low = new T.Group(), shell = new T.Group(), roof = new T.Group();
   g.rotation.order = 'YZX'; g.add(low, shell); shell.add(roof);
   mesh(box(CAR,.14,2.5), mat.floor, 'interior', low, 0, .97, 0);
@@ -599,9 +620,9 @@ function buildCar(idx, lights, n){
   const body = mesh(bodyGeo, mat.body, 'body', shell, -CAR/2, 0, 0); body.rotation.y = PI/2;
   const doors = {'1':[], '-1':[]};
   for (const sd of [-1,1]){
-    mesh(box(CAR,.28,.02), mat.blue, 'body', shell, 0, 1.5, sd*1.33);
-    mesh(box(CAR,.08,.02), mat.red, 'body', shell, 0, 1.3, sd*1.33);
-    for (const w of BAYS) mesh(box(w[1],.95,.02), mat.glass, 'body', shell, w[0], 2.4, sd*1.331);
+    mesh(box(CAR,1.2,.02), mat.blue, 'body', shell, 0, 2.4, sd*1.33);
+    mesh(box(CAR,.13,.02), mat.red, 'body', shell, 0, 1.66, sd*1.33);
+    for (const w of BAYS) mesh(box(w[1],.95,.02), mat.glass, 'body', shell, w[0], 2.4, sd*1.338);
     for (const dx of DOORX) for (const dir of [-1,1]){
       const leaf = mesh(box(.68,1.95,.05), mat.door, 'doors', shell, dx+dir*.35, 2, sd*1.365);
       const gl = new T.Mesh(box(.5,.8,.06), mat.glass); gl.position.y = .4; leaf.add(gl);
@@ -613,6 +634,7 @@ function buildCar(idx, lights, n){
   if (idx === 0 || idx === n-1){
     const n = new T.Group(); n.position.x = (idx === 0 ? 1 : -1)*(CAR/2 + NOSE/2); if (idx) n.rotation.y = PI; shell.add(n);
     mesh(noseGeo(.9,3.3,1.31,0), mat.nose, 'nose', n, 0, 2.1, 0);
+    if (n4) mesh(noseGeo(1.8,3.18,1.2,.015), mat.blue, 'nose', n, 0, 2.49, 0);   // the newer four-car trains have a blue surround
     mesh(noseGeo(1.95,3.05,1.12,.03), mat.screen, 'nose', n, 0, 2.5, 0);
     for (const z of [-.8,.8]) mesh(box(.06,.14,.32), lights[idx ? 1 : 0], null, n, .62, 1.3, z);
   }
@@ -922,8 +944,8 @@ const INFO = {
   shoes:{g:'train', name:'Collector shoes', what:'Sprung metal pads that reach sideways from the bogie and slide along the power rails, picking up electricity as the train moves.',
     more:'There are shoes on both sides of every bogie, so the train can pick up power whichever side the rail is on and coast across short gaps.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
   power:{g:'track', name:'Power rails', what:'Electrified rails beside the track, fed with 750 volts of direct current. Power arrives from the national grid at Jelatek and Kerinchi and is stepped down through about 15 substations along the line. The rail is covered, and nobody walks on the track.',
-    more:'This family of trains normally uses a pair of power rails, one out and one back, which is what the model shows. I could not confirm the exact arrangement on this line from published sources.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
-  reaction:{g:'track', name:'Reaction rail', what:'The flat aluminium strip lying between the running rails. It is the other half of the motor, and it never moves.',
+    more:'There are two of them, one above the other, held on white insulators: one carries current out to the train and the other carries it back. Near stations they sit under a yellow cover. The model has them on the inner side throughout; on the real line they swap sides to stay away from the platform.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
+  reaction:{g:'track', name:'Reaction rail', what:'The wide, flat aluminium plate lying between the running rails. It is the other half of the motor, and it never moves.',
     more:'The magnetic wave from the slab on the train grips this strip from just above and pulls against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
   rails:{g:'track', name:'Running rails', bm:'Landasan', what:'Two steel rails, 1,435 millimetres apart. That is standard gauge, the same spacing most metros in the world use.',
     more:'They carry and guide the train. There are two tracks, and trains keep to the left, the same as Malaysian roads.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
@@ -937,6 +959,10 @@ const INFO = {
     more:'They keep people and air-conditioned air on the platform side. They only work because the train stops in exactly the same place every time.', f:stnFocus(stations[9], 20, 1.3)},
   depot:{g:'track', name:'Subang Depot', bm:'Kompleks Rapid Rail Subang', what:'The train home. Every train on the line starts and ends its day here: a long fan of stabling tracks, a loop round the far end, the rolling stock workshop, and the control centre that watches the whole line.',
     more:'The tracks and building outlines are the real ones, from OpenStreetMap, including Menara Prasarana and the Operations Control Centre. The depot is drawn at true size so trains fit on its tracks, while the rest of the map is shrunk to a third, so it looks bigger against the line than it really is. Where the trains are parked, which tracks are under cover, and the ramp up to the main line are not from the map.', f:depFocus},
+  panels:{g:'track', name:'Red track panels', what:'At every platform the gaps between the rails are closed with red panels, each with a number such as B52. They are printed with AMARAN and WARNING: stepping on this area is prohibited.',
+    more:'They keep anything dropped from the platform out of the track bed and make the danger zone obvious. Away from stations the track is open, and you can see the rail fastenings bolted straight to the concrete.', f:stnFocus(stations[13], 16, 1.25)},
+  walkway:{g:'track', name:'Emergency walkway', what:'A raised metal walkway runs between the two tracks, about level with the train floor. If a train has to be emptied between stations, this is how people walk out.',
+    more:'It only appears where the tracks run close together. Where they spread apart for an island platform, or split into separate tunnels, it is left out of the model.', f:{car:0, off:[CAR/2+9,.9,-2.2], dist:9, pol:1.15, az:PI/2+.7}},
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
     more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac. Operators have described it as allowing a train every 90 seconds, with a safety gap of 30 to 100 metres.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
