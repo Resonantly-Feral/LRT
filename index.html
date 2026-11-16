@@ -95,7 +95,8 @@ label.tog span small{display:block;color:var(--muted);font-size:13px}
 .seg button{flex:1;border:0;background:var(--panel);padding:7px 8px;font-weight:500}
 .seg button + button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
-#thr{width:100%;accent-color:var(--accent)}
+#thr,#fleet{width:100%;accent-color:var(--accent)}
+#voice{max-width:260px;font-size:12px}
 .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
 .btn{border:1px solid var(--ink);background:var(--panel);border-radius:3px;padding:7px 12px;font-weight:600}
 .btn:disabled{opacity:.45;cursor:not-allowed}
@@ -136,7 +137,7 @@ ol.line li.under button{border-left-style:dashed}
     <div class="over" id="top">
       <div class="titlebox">
         <h1><b>Kelana Jaya</b> LRT in 3D</h1>
-        <p class="sub">A driverless Malaysian train you can pull apart. Drag to look around, pinch or scroll to zoom, tap a part to learn it. Zoom far out, or tap Whole line, to see every train at once. Turn Sound on for the door chime and next-station announcements.</p>
+        <p class="sub">A driverless Malaysian train you can pull apart. Drag to look around, pinch or scroll to zoom, tap a part to learn it. Zoom far out, or tap Whole line, to see every train at once. Turn Sound on for the door chime and next-station announcements. People wait on the platforms and board when the doors open.</p>
       </div>
       <div class="row" id="cams" role="group" aria-label="Camera">
         <button class="chip" data-cam="follow" aria-pressed="true">Follow train</button>
@@ -157,6 +158,7 @@ ol.line li.under button{border-left-style:dashed}
       <div id="pwr">Stopped</div>
       <div id="toward" class="lab"></div>
       <button id="snd" class="btn" aria-pressed="false">Sound off</button>
+      <div id="voice" class="note"></div>
     </div>
   </div>
 
@@ -216,6 +218,12 @@ ol.line li.under button{border-left-style:dashed}
           <p class="note" id="manhint">Try to speed into a curve or run into the train ahead. The protection system overrules you.</p>
         </div>
         <label class="tog"><input type="checkbox" id="hold"><span>Hold the train ahead at its next station<small>Watch your train queue up behind it at a safe distance.</small></span></label>
+      </div>
+      <div class="group">
+        <h3>Trains in service</h3>
+        <input type="range" id="fleet" min="2" max="20" value="12" aria-label="Number of trains in service">
+        <div class="ends"><span>Quiet</span><span>Normal</span><span>Rush hour</span></div>
+        <p class="note" id="fleetnote">12 trains running. Normal service.</p>
       </div>
       <div class="group">
         <h3>Time</h3>
@@ -511,6 +519,30 @@ const stops = [];
 for (let i=0; i<NST; i++) stops.push({q:stU[i]-uA, st:stations[i], term:i === 0 || i === NST-1});
 for (let i=NST-2; i>=1; i--) stops.push({q:P-(stU[i]-uA), st:stations[i], term:false});
 
+/* ---------- people waiting on the platforms ---------- */
+const PPL = 12, NP = stops.length*PPL, waitN = new Float32Array(stops.length), pres = new Float32Array(NP), slots = [];
+const pBody = new T.InstancedMesh(new T.CylinderGeometry(.2,.26,1.3,8), new T.MeshStandardMaterial({roughness:.8}), NP);
+const pHead = new T.InstancedMesh(new T.SphereGeometry(.17,8,6), new T.MeshStandardMaterial({color:0xc99a7a, roughness:.8}), NP);
+pBody.frustumCulled = pHead.frustumCulled = false; scene.add(pBody, pHead);
+const pm = new T.Object3D();
+{ let seed = 99; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647, col = new T.Color(), pal = [0xc2185b,0x0a4fa3,0x2f7d4f,0xe0a020,0x44505c,0xf2f2f2,0x7a3fa0,0xd3552f];
+  pm.scale.setScalar(.001); pm.updateMatrix();
+  stops.forEach((s, k) => { const dir = k === 0 ? -1 : k <= NST-1 ? 1 : -1, st = s.st, w = HALFW[st.pl]; waitN[k] = rnd()*8;
+    for (let j=0; j<PPL; j++){ const r = rnd(), isl = st.pl === 'I';
+      slots.push({xs:(rnd()-.5)*62, lat0:-dir*(isl ? w-2.7-r*1.1 : w+2.7+r*2.4), edge:-dir*(isl ? w-1.6 : w+1.6)});
+      pBody.setColorAt(k*PPL+j, col.setHex(pal[(rnd()*pal.length)|0])); pBody.setMatrixAt(k*PPL+j, pm.matrix); pHead.setMatrixAt(k*PPL+j, pm.matrix); } }); }
+function updatePeople(dt){
+  pBody.visible = pHead.visible = !ov;
+  for (let k=0; k<stops.length; k++){ const st = stops[k].st, c = st.c; waitN[k] = Math.min(PPL, waitN[k] + dt*(st.x ? .22 : .12));
+    const near = !ov && st.pos.distanceTo(camera.position) < 900, full = Math.floor(waitN[k]);
+    for (let j=0; j<PPL; j++){ const i = k*PPL+j, target = j < full ? 1 : 0; let p = pres[i]; p += clamp(target-p, -dt/1.2, dt/.6); pres[i] = p;
+      if (!near) continue; const s = slots[i], lat = s.lat0 + (s.edge-s.lat0)*(target ? 0 : 1-p), sc = Math.max(.001, p);
+      pm.rotation.y = -c.th; pm.scale.setScalar(sc);
+      pm.position.set(c.x + c.tx*s.xs + c.nx*lat, c.y + 1.03 + .65*sc, c.z + c.tz*s.xs + c.nz*lat); pm.updateMatrix(); pBody.setMatrixAt(i, pm.matrix);
+      pm.position.y = c.y + 1.03 + 1.47*sc; pm.updateMatrix(); pHead.setMatrixAt(i, pm.matrix); } }
+  pBody.instanceMatrix.needsUpdate = pHead.instanceMatrix.needsUpdate = true;
+}
+
 /* ---------- train: four cars, 67.1 m over all, 2.65 m wide ---------- */
 const CAR = 15.5, GAP = .7, SP = CAR+GAP, BG = 5.3, NCAR = 4, NOSE = 1.5, HALF = 1.5*SP + CAR/2 + NOSE, WR = .28;
 const DOORX = [-4.9,0,4.9], BAYS = [[-6.65,1.5],[-2.45,3.1],[2.45,3.1],[6.65,1.5]];
@@ -543,7 +575,8 @@ function buildBogie(){
   }
   return {g, axles, bars};
 }
-function buildCar(idx, lights){
+function buildCar(idx, lights, n){
+  n = n || NCAR;
   const g = new T.Group(), low = new T.Group(), shell = new T.Group(), roof = new T.Group();
   g.rotation.order = 'YZX'; g.add(low, shell); shell.add(roof);
   mesh(box(CAR,.14,2.5), mat.floor, 'interior', low, 0, .97, 0);
@@ -564,8 +597,8 @@ function buildCar(idx, lights){
     }
   }
   for (const x of [-3.8,3.8]) mesh(box(3.2,.28,1.7), mat.hvac, 'hvac', roof, x, 3.58, 0);
-  if (idx < NCAR-1) mesh(box(GAP,2.2,2), mat.gang, 'body', shell, -CAR/2-GAP/2, 2.1, 0);
-  if (idx === 0 || idx === NCAR-1){
+  if (idx < n-1) mesh(box(GAP,2.2,2), mat.gang, 'body', shell, -CAR/2-GAP/2, 2.1, 0);
+  if (idx === 0 || idx === n-1){
     const n = new T.Group(); n.position.x = (idx === 0 ? 1 : -1)*(CAR/2 + NOSE/2); if (idx) n.rotation.y = PI; shell.add(n);
     mesh(noseGeo(.9,3.3,1.31,0), mat.nose, 'nose', n, 0, 2.1, 0);
     mesh(noseGeo(1.95,3.05,1.12,.03), mat.screen, 'nose', n, 0, 2.5, 0);
@@ -577,14 +610,15 @@ function buildCar(idx, lights){
 }
 const N_ENV = 36;
 function buildTrain(i, stopIdx){
+  const n = i % 6 === 3 ? 2 : NCAR;   // every sixth train is an older two-car set
   const lights = [new T.MeshBasicMaterial(), new T.MeshBasicMaterial()];
-  const cars = []; for (let c=0; c<NCAR; c++) cars.push(buildCar(c, lights));
+  const cars = []; for (let c=0; c<n; c++) cars.push(buildCar(c, lights, n));
   const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.Float32BufferAttribute(new Float32Array((N_ENV+1)*6), 3));
   const ix = []; for (let k=0; k<N_ENV; k++){ const a=k*2; ix.push(a,a+1,a+2, a+1,a+3,a+2); } eg.setIndex(ix);
   const env = new T.Mesh(eg, new T.MeshBasicMaterial({color:0x22b8ff, transparent:true, opacity:.5, side:DS, depthWrite:false}));
   env.frustumCulled = false; scene.add(env);
   const dir = stopIdx < NST-1 ? 1 : -1;
-  const tr = {i, q:stops[stopIdx].q, dir, o:dir, v:0, a:0, state:'dwell', next:stopIdx, timer:i*.9, door:1, doorT:1, doorSide:0, thr:0, manual:false, hold:false,
+  const tr = {i, n, half:(n-1)/2*SP + CAR/2 + NOSE, q:stops[stopIdx].q, dir, o:dir, v:0, a:0, state:'dwell', next:stopIdx, timer:i*.9, door:1, doorT:1, doorSide:0, thr:0, manual:false, hold:false,
     prot:false, why:'free', flipAt:-1, dStn:0, cars, env, lights, label:addLabel('Train '+(i+1), 'train'), roll:0, u:0, pos:new T.Vector3()};
   setDoorSide(tr); setLights(tr); return tr;
 }
@@ -600,7 +634,9 @@ let cur = 0, holdOther = false, warp = 1;
 const flat = c => new T.MeshBasicMaterial({color:c, fog:false});
 sweepM(0, LT, [{prof:[[-26,30],[26,30]]}], new T.MeshBasicMaterial({color:0xe0115f, fog:false, side:DS}), null, ovg);
 const dots = stations.map(st => { const m = mesh(new T.CylinderGeometry(st.x || st.term ? 80 : 52, st.x || st.term ? 80 : 52, 6, 24), flat(0xffffff), null, ovg, st.c.x, st.c.y+36, st.c.z); m.userData.st = st; return m; });
-const balls = trains.map(t => { const m = mesh(new T.SphereGeometry(70, 18, 12), flat(0x0a4fa3), null, ovg); m.userData.train = t.i; return m; });
+const balls = [];
+function mkBall(t){ const m = mesh(new T.SphereGeometry(70, 18, 12), flat(0x0a4fa3), null, ovg); m.userData.train = t.i; balls[t.i] = m; }
+trains.forEach(mkBall);
 let ov = false;
 
 /* ---------- Subang Depot: where the trains live. The real yard is beside Lembah Subang; this layout is invented. ---------- */
@@ -637,17 +673,17 @@ function flip(tr){
 }
 function leaderOf(tr){ let best = null, bd = 1e9; for (const o of trains){ if (o === tr) continue; const d = mod(o.q - tr.q); if (d < bd){ bd = d; best = o; } } return best; }
 function stepTrain(tr, dt){
-  const front = tr.q + HALF, uC = uOf(tr); let va = VMAX, why = 'free';
+  const front = tr.q + tr.half, uC = uOf(tr); let va = VMAX, why = 'free';
   const lim = (d, vt, w) => { const x = Math.sqrt(vt*vt + 2*B*Math.max(d,0)); if (x < va){ va = x; why = w; } };
-  for (let d=-2*HALF; d<=300; d+=12){            // speed limits for curves and crossovers, under the train and ahead
-    const u = uC + tr.dir*(HALF+d); if (u < 0 || u > LT) continue;
+  for (let d=-2*tr.half; d<=300; d+=12){            // speed limits for curves and crossovers, under the train and ahead
+    const u = uC + tr.dir*(tr.half+d); if (u < 0 || u > LT) continue;
     const k = Math.abs(K[Math.min(NS-1, (u/ds)|0)]); let vt = k ? clamp(Math.sqrt(.9/k), 6, VMAX) : VMAX;
     if (inX(u, tr.dir)) vt = Math.min(vt, 9);
     if (vt < VMAX) lim(d, vt, 'curve');
   }
   for (const o of trains){ if (o === tr) continue;
-    lim(mod(o.q - HALF - front) - 14, 0, 'ahead');
-    for (const qc of [0, LEN]) if (Math.abs(wrap(o.q - qc)) < ZC + HALF){ const rf = wrap(front - qc); if (rf < -ZC) lim(-ZC - 8 - rf, 0, 'ahead'); }
+    lim(mod(o.q - o.half - front) - 14, 0, 'ahead');
+    for (const qc of [0, LEN]) if (Math.abs(wrap(o.q - qc)) < ZC + o.half){ const rf = wrap(front - qc); if (rf < -ZC) lim(-ZC - 8 - rf, 0, 'ahead'); }
   }
   if (tr.manual){ let best = 1e9; stops.forEach((s,k) => { const d = mod(s.q - tr.q + 5); if (d < best){ best = d; tr.next = k; } }); if (tr.next !== tr.flipAt) tr.flipAt = -1; }
   const stop = stops[tr.next]; let d = mod(stop.q - tr.q); if (d > P-6) d -= P;
@@ -674,6 +710,7 @@ function stepTrain(tr, dt){
     if (tr.timer > wait && !tr.hold) tr.doorT = 0;
     if (tr.timer > wait && tr.door < .01 && !tr.hold){ if (stop.term) flip(tr); tr.state = 'run'; tr.next = (tr.next+1) % stops.length; tr.flipAt = -1; }
   }
+  if (tr.door > .6 && Math.abs(tr.dStn) < 4) waitN[tr.next] = Math.max(0, waitN[tr.next] - 7*dt);   // people board
   tr.door += clamp(tr.doorT - tr.door, -dt/1.4, dt/1.4);
   tr.why = why;
 }
@@ -683,9 +720,9 @@ function poseTrain(tr, dt, time){
   { const p = TP(uC, tr.dir); tr.pos.set(p.x, p.y, p.z); }
   const far = ov || (tr.i !== cur && tr.pos.distanceTo(camera.position) > 1500);
   tr.roll -= sx(tr)*tr.v*dt/WR;
-  for (let i=0; i<NCAR; i++){
+  for (let i=0; i<tr.n; i++){
     const c = tr.cars[i]; c.g.visible = !far; if (far) continue;
-    const uc = uC + tr.o*(1.5-i)*SP, A = TP(uc + tr.o*BG, tr.dir), Bk = TP(uc - tr.o*BG, tr.dir);
+    const uc = uC + tr.o*((tr.n-1)/2-i)*SP, A = TP(uc + tr.o*BG, tr.dir), Bk = TP(uc - tr.o*BG, tr.dir);
     const dx = A.x-Bk.x, dz = A.z-Bk.z, th = Math.atan2(-dz, dx), hd = Math.hypot(dx,dz)/2;
     c.g.position.set((A.x+Bk.x)/2, (A.y+Bk.y)/2, (A.z+Bk.z)/2); c.g.rotation.set(0, th, Math.atan2(A.y-Bk.y, 2*hd)); c.th = th;
     c.bogies[0].g.position.x = hd;  c.bogies[0].g.rotation.y = Math.atan2(-tr.o*Math.sin(A.th), tr.o*Math.cos(A.th)) - th;
@@ -707,7 +744,7 @@ function poseTrain(tr, dt, time){
   tr.env.visible = layers.signal && !far;
   if (tr.env.visible){   // reserved stopping space ahead
     const len = tr.v*tr.v/(2*B) + 12, p = tr.env.geometry.attributes.position;
-    for (let k=0; k<=N_ENV; k++){ const u = clamp(uC + tr.dir*(HALF + len*k/N_ENV), 0, LT), c = cAt(u), l = c.w*(1 - 2*xa(u, tr.dir));
+    for (let k=0; k<=N_ENV; k++){ const u = clamp(uC + tr.dir*(tr.half + len*k/N_ENV), 0, LT), c = cAt(u), l = c.w*(1 - 2*xa(u, tr.dir));
       p.setXYZ(k*2, c.x + c.nx*(l+1.05), c.y+.24, c.z + c.nz*(l+1.05)); p.setXYZ(k*2+1, c.x + c.nx*(l-1.05), c.y+.24, c.z + c.nz*(l-1.05)); }
     p.needsUpdate = true; tr.env.material.color.setHex(tr.why === 'ahead' ? 0xffb020 : 0x22b8ff);
   }
@@ -759,7 +796,7 @@ const cam = {tgt:new T.Vector3(), off:new T.Vector3(), dist:46, pol:1.15, az:0, 
 let focus = null;
 const want = new T.Vector3();
 // train-relative views are written for "car 0 leading, platform on the far side" and mirrored to match the train
-function carOf(f){ const tr = trains[cur], s = sx(tr), n = f.car == null ? 1 : f.car; return tr.cars[s > 0 ? n : NCAR-1-n]; }
+function carOf(f){ const tr = trains[cur], s = sx(tr), n = f.car == null ? 1 : f.car; const m = Math.min(n, tr.n-1); return tr.cars[s > 0 ? m : tr.n-1-m]; }
 function resolveFocus(f, out){
   if (f.fixed){ out.copy(f.fixed); return null; }
   const s = sx(trains[cur]), c = carOf(f); c.g.updateMatrixWorld();
@@ -806,9 +843,9 @@ function updateCamera(dt){
   camera.near = clamp(far/250, .3, 40); camera.far = Math.max(3600, far*5); camera.updateProjectionMatrix();
   scene.fog.near = Math.max(500, far*1.6); scene.fog.far = Math.max(1800, far*4.5);
   if (cam.cab){
-    const tr = trains[cur], s = sx(tr), c = tr.cars[s > 0 ? 0 : NCAR-1]; c.g.updateMatrixWorld();
+    const tr = trains[cur], s = sx(tr), c = tr.cars[s > 0 ? 0 : tr.n-1]; c.g.updateMatrixWorld();
     camera.position.set(s*(CAR/2 + NOSE + .4), 2.7, 0); c.g.localToWorld(camera.position);
-    const q = TP(clamp(tr.u + tr.dir*(HALF+28), 0, LT), tr.dir); camera.lookAt(q.x, q.y+2, q.z); return;
+    const q = TP(clamp(tr.u + tr.dir*(tr.half+28), 0, LT), tr.dir); camera.lookAt(q.x, q.y+2, q.z); return;
   }
   const sp = Math.sin(cam.pol); let y = cam.tgt.y + cam.dist*Math.cos(cam.pol); if (cam.tgt.y > 1) y = Math.max(.8, y);
   camera.position.set(cam.tgt.x + cam.dist*sp*Math.sin(cam.az), y, cam.tgt.z + cam.dist*sp*Math.cos(cam.az));
@@ -833,7 +870,7 @@ function pickAt(e){
   if (ov){   // on the map: tap a train to ride it, a station to fly there
     const near = (list, lim) => { let best = null, bd = lim; for (const m of list){ tmp.copy(m.position).project(camera);
       const d = Math.hypot((tmp.x-ndc.x)*r.width/2, (tmp.y-ndc.y)*r.height/2); if (d < bd){ bd = d; best = m; } } return best; };
-    const hb = near(balls, 30), hd = hb ? null : near(dots, 26);
+    const hb = near(balls.filter(b => b.visible), 30), hd = hb ? null : near(dots, 26);
     if (hb) rideTrain(hb.userData.train); else if (hd) flyTo(hd.userData.st);
     return;
   }
@@ -846,7 +883,7 @@ function pickAt(e){
 const front = [CAR/2+5, .2, 0];
 const INFO = {
   body:{g:'train', name:'Car body', bm:'Badan gerabak', what:'A light aluminium shell, 2.65 metres wide. Four cars make a train about 67 metres long, joined by open gangways so the whole thing is one long room. Each car carries up to 220 people.',
-    more:'These are Innovia Metro trains, built by Bombardier (now Alstom). The line also runs older two-car sets of the same family. Light matters: this train starts and stops every couple of minutes, and every start costs energy.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
+    more:'These are Innovia Metro trains, built by Bombardier (now Alstom). Trains 4 and 10 here are older two-car sets. Wikipedia says the original two-car trains ran from 1998 to 2023, and some were refurbished and coupled into fours. Light matters: this train starts and stops every couple of minutes, and every start costs energy.', f:{car:1, off:[0,2.2,0], dist:30, pol:1.2, az:PI+.5}},
   nose:{g:'train', name:'Front end, with no cab', what:'There is no driver, so there is no driver\'s cab. The front is a passenger window. You can stand right at the nose and watch the track come at you.',
     more:'Both ends are the same, because at the end of the line the train simply sets off the other way. Watch the headlights and tail lights swap at Gombak or Putra Heights.', f:{car:0, off:[CAR/2+.5,2.2,0], dist:10, pol:1.3, az:PI/2+.7}},
   doors:{g:'train', name:'Doors', bm:'Pintu', what:'Sliding doors on both sides. Only the platform side opens. Some stations have a platform on each side of the tracks, others have one island in the middle, so the train has to know which side to open.',
@@ -953,7 +990,26 @@ function setManual(on){
   const t = trains[cur]; t.manual = on; $('manual').hidden = !on; $('thr').value = 0;
   if (on && t.state === 'dwell') t.state = 'run';
 }
-trains.forEach(t => { t.label.addEventListener('click', () => rideTrain(t.i)); const o = document.createElement('option'); o.value = t.i; o.textContent = 'Train ' + (t.i+1); $('which').appendChild(o); });
+function fillWhich(){ const w = $('which'); w.textContent = ''; trains.forEach(t => { const o = document.createElement('option'); o.value = t.i; o.textContent = 'Train ' + (t.i+1) + (t.n === 2 ? ' (two-car)' : ''); w.appendChild(o); }); w.value = cur; }
+trains.forEach(t => t.label.addEventListener('click', () => rideTrain(t.i))); fillWhich();
+const pool = [];
+function setFleet(n){   // trains leave service from the end of the list, and join at the emptiest stretch of line
+  while (trains.length > n){
+    if (cur === trains.length-1){ chooseTrain(0); if (focus && !focus.fixed) setFocus(focus); }
+    const t = trains.pop(); t.cars.forEach(c => { c.g.visible = false; }); t.env.visible = false; t.label.hidden = true; balls[t.i].visible = false; t.manual = false; pool.push(t);
+  }
+  while (trains.length < n){
+    let best = 1, bd = -1; stops.forEach((s, k) => { let d = 1e9; for (const o of trains) d = Math.min(d, Math.abs(wrap(s.q - o.q))); if (d > bd){ bd = d; best = k; } });
+    let t = pool.pop();
+    if (!t){ t = buildTrain(trains.length, best); mkBall(t); const me = t; t.label.addEventListener('click', () => rideTrain(me.i)); }
+    const dir = best < NST-1 ? 1 : -1;
+    Object.assign(t, {q:stops[best].q, dir, o:dir, v:0, a:0, state:'dwell', next:best, timer:0, door:1, doorT:1, flipAt:-1, manual:false, thr:0});
+    setDoorSide(t); setLights(t); balls[t.i].visible = true; trains.push(t);
+  }
+  fillWhich();
+  $('fleetnote').textContent = n + ' trains running. ' + (n < 8 ? 'Quiet hours: long gaps between trains.' : n < 15 ? 'Normal service.' : 'Rush hour: a train every few stations.');
+}
+$('fleet').addEventListener('input', e => setFleet(+e.target.value));
 const rideTrain = i => { chooseTrain(i); setCam('follow'); }, flyTo = st => { setFocus(stnFocus(st)); markCam(''); };
 function chooseTrain(i){ const man = trains[cur].manual; cur = i; $('which').value = i; setManual(man); $('hudname').textContent = 'Train ' + (i+1); }
 $('which').addEventListener('change', e => { chooseTrain(+e.target.value); if (focus && !focus.fixed) setFocus(focus); else setCam('follow'); });
@@ -970,9 +1026,27 @@ function chime(up){
     o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, s); g.gain.linearRampToValueAtTime(.18, s+.02); g.gain.exponentialRampToValueAtTime(.001, s+.6);
     o.connect(g); g.connect(actx.destination); o.start(s); o.stop(s+.65); });
 }
-function say(text){ try { if (!('speechSynthesis' in window)) return; const u = new SpeechSynthesisUtterance(text); u.rate = .95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+let vMs = null, vEn = null, voiceNote = '';
+function pickVoices(){
+  try { const vs = speechSynthesis.getVoices();
+    const find = (...ls) => { for (const l of ls){ const v = vs.find(x => x.lang.replace('_','-').toLowerCase().startsWith(l)); if (v) return v; } return null; };
+    vMs = find('ms', 'id'); vEn = find('en-my', 'en-sg', 'en-gb', 'en-au', 'en');
+    voiceNote = !vs.length ? '' : !vMs ? 'No Malay voice on this device. The Malay line is read by an English voice.'
+      : (vMs.lang.toLowerCase().startsWith('ms') ? 'Malay voice: ' : 'No Malay voice here, using Indonesian: ') + vMs.name;
+    setText($('voice'), soundOn ? voiceNote : '');
+  } catch (e) {}
+}
+try { speechSynthesis.addEventListener('voiceschanged', pickVoices); } catch (e) {}
+function say(parts){   // parts: [['ms', text], ['en', text]], each read by a voice for that language
+  try { if (!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+    parts.forEach(p => { const u = new SpeechSynthesisUtterance(p[1]), v = p[0] === 'ms' ? vMs : vEn;
+      if (v){ u.voice = v; u.lang = v.lang; } else u.lang = p[0] === 'ms' ? 'ms-MY' : 'en-GB';
+      u.rate = .9; speechSynthesis.speak(u); });
+  } catch (e) {}
+}
 $('snd').addEventListener('click', () => {
   soundOn = !soundOn; $('snd').setAttribute('aria-pressed', soundOn); $('snd').textContent = soundOn ? 'Sound on' : 'Sound off';
+  pickVoices();
   if (soundOn){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} chime(true); }
   else try { speechSynthesis.cancel(); } catch (e) {}
 });
@@ -982,7 +1056,8 @@ function updateLed(t){
   setText($('led'), msg);
   const key = (at ? 'a' : 'n') + t.next;
   if (key !== ledKey || t.i !== ledTrain){
-    if (soundOn && t.i === ledTrain){ chime(at); say(at ? name : 'Stesen berikutnya, ' + name + '. Next station, ' + name + '.'); }
+    if (soundOn && t.i === ledTrain){ chime(at); say(at ? [['ms', name]].concat(stop.term && t.state === 'dwell' ? [['en', 'This is the last stop.']] : stop.st.x ? [['en', 'Interchange station for ' + stop.st.x + '.']] : [])
+        : [['ms', 'Stesen berikutnya, ' + name + '.'], ['en', 'Next station, ' + name + '.']]); }
     ledKey = key; ledTrain = t.i;
   }
 }
@@ -1024,7 +1099,7 @@ function frame(now){
   explode += ((layers.explode ? 1 : 0) - explode) * (reduced ? 1 : 1 - Math.exp(-dt*4));
   const lead = holdOther ? leaderOf(trains[cur]) : null;
   for (let n=0; n<warp; n++) trains.forEach(t => { t.hold = t === lead; stepTrain(t, Math.max(dt, 1e-4)); });
-  trains.forEach(t => poseTrain(t, dt*warp, time));
+  trains.forEach(t => poseTrain(t, dt*warp, time)); updatePeople(dt*warp);
   if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
   updateCamera(dt); updateHud();
   if ((lineT -= dt) < 0){ lineT = .5; updateLine(); }
