@@ -226,6 +226,11 @@ ol.line li.under button{border-left-style:dashed}
         <p class="note" id="fleetnote">12 trains running. Normal service.</p>
       </div>
       <div class="group">
+        <h3>Sky</h3>
+        <div class="seg" id="sky"><button data-s="auto" aria-pressed="true">Auto</button><button data-s="day" aria-pressed="false">Day</button><button data-s="night" aria-pressed="false">Night</button></div>
+        <label class="tog"><input type="checkbox" id="rain"><span>Rain<small>Wet rails make ordinary trains slip. This one is pushed by magnets, so it carries on. In daylight, look for the rainbow.</small></span></label>
+      </div>
+      <div class="group">
         <h3>Time</h3>
         <div class="seg" id="warp"><button data-x="1" aria-pressed="true">Real speed</button><button data-x="4" aria-pressed="false">4 times faster</button></div>
       </div>
@@ -432,6 +437,19 @@ const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.62],[
 const pipeItems = [-1,1].flatMap(sd => [.3,.46].map(y => ({prof:c => { const h = c.w + 2.0; return sd > 0 ? rect(h-.11,h,y-.055,y+.055) : rect(-h,-h+.11,y-.055,y+.055); }})));
 const TUBE = Array.from({length:14}, (_, k) => { const an = -PI/2 + k*2*PI/14; return [2.55*Math.cos(an), 1.9 + 2.55*Math.sin(an)]; });
 const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h,5.4]]; };
+function tieTex(){ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');   // one baseplate with two clips, repeated along the rail
+  g.clearRect(0,0,64,64); g.fillStyle = '#3d4146'; g.fillRect(5,14,54,36); g.fillStyle = '#6b4a3a'; g.fillRect(9,22,12,20); g.fillRect(43,22,12,20);
+  g.fillStyle = '#9aa0a6'; g.fillRect(12,29,6,6); g.fillRect(46,29,6,6);
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; }
+mat.tie = new T.MeshStandardMaterial({map:tieTex(), transparent:true, alphaTest:.4, roughness:.9, side:DS});
+function tieStrip(u0, u1){
+  const n = Math.max(1, Math.ceil((u1-u0)/2.6)), pos = [], uv = [], P3 = (c, l) => [c.x + c.nx*l, c.y + .022, c.z + c.nz*l];
+  for (let i=0; i<n; i++){ const ua = u0 + (u1-u0)*i/n, ub = u0 + (u1-u0)*(i+1)/n, A = cAt(ua), B = cAt(ub), va = (ua-u0)/.75, vb = (ub-u0)/.75;
+    for (const sd of [-1,1]) for (const r of [-.7175,.7175]){ const la = sd*A.w + r, lb = sd*B.w + r;
+      pos.push(...P3(A,la-.27), ...P3(A,la+.27), ...P3(B,lb+.27), ...P3(A,la-.27), ...P3(B,lb+.27), ...P3(B,lb-.27)); uv.push(0,va, 1,va, 1,vb, 0,va, 1,vb, 0,vb); } }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  mesh(g, mat.tie, 'rails', detail);
+}
 const CH = 65;
 for (let u0=0; u0<LT-1; u0+=CH){
   const u1 = Math.min(LT, u0+CH), cm = cAt((u0+u1)/2), lo = Math.min(cAt(u0).y, cAt(u1).y);
@@ -449,6 +467,7 @@ for (let u0=0; u0<LT-1; u0+=CH){
   const um = (u0+u1)/2, nearStn = stU.some(s => Math.abs(s - um) < 75);
   if (nearStn && !gap) sweepM(u0, u1, [-1,1].map(sd => ({lat:side(sd), prof:(sd > 0) !== outer ? rect(-1.42,-1.12,.52,.58) : rect(1.12,1.42,.52,.58)})), mat.cover, 'power');
   if (!under && !nearStn) sweepM(u0, u1, pipeItems, mat.pipe, 'cables', null, 6.5);
+  if (!nearStn) tieStrip(u0, u1);
   if (lo > -.6 && cm.w < 2.4 && cAt(u0).w < 2.4 && cAt(u1).w < 2.4) sweepM(u0, u1, [{prof:rect(-.5,.5,.78,.9)}, {prof:rect(-.06,.06,0,.78)}], mat.walk, 'walkway');
   if (under) sweepM(u0, u1, box_ ? [{prof:tunProf}] : [-1,1].map(sd => ({lat:side(sd), prof:TUBE})), mat.tunnel, 'tunnel');
   if (cm.y > 4){
@@ -709,7 +728,8 @@ let ov = false;
 
 /* ---------- Subang Depot, from OpenStreetMap. Drawn at true size so trains fit, while the rest of the map is shrunk. ---------- */
 const depot = new T.Group(); depot.position.set(DEP.ox, 0, DEP.oz); scene.add(depot);
-mat.yard = M('depot', 0x9a9f9c, {roughness:1}); mat.bed = M('depot', 0x7d8286, {roughness:1, side:DS});
+mat.yard = M('depot', 0x9a9f9c, {roughness:1}); mat.shedFrame = M('depot', 0x6f7b86, {metalness:.4});
+mat.shedRoof = M('depot', 0x8799ab, {roughness:.5, metalness:.3, transparent:true, opacity:.62, depthWrite:false, side:DS}); mat.bed = M('depot', 0x7d8286, {roughness:1, side:DS});
 mat.shed = M('depot', 0xd9e2ea, {roughness:.4, transparent:true, opacity:.32, depthWrite:false, side:DS});
 const flatShape = pts => { const sh = new T.Shape(); pts.forEach((p, k) => k ? sh.lineTo(p[0], -p[1]) : sh.moveTo(p[0], -p[1])); return sh; };
 { const m = mesh(new T.ShapeGeometry(flatShape(DEPOT.poly)), mat.yard, 'depot', depot, 0, .1, 0); m.rotation.x = -PI/2; }
@@ -726,7 +746,12 @@ const depLabels = [];
 for (const b of DEPOT.bld){
   if (/Platform/.test(b.n)) continue;
   const solid = /Administration|Menara|Control|Dewan/.test(b.n);   // offices are solid; sheds are see-through so you can look inside
-  const m = mesh(new T.ExtrudeGeometry(flatShape(b.p), {depth:b.h, bevelEnabled:false}), solid ? mat.plat : mat.shed, 'depot', depot, 0, .1, 0); m.rotation.x = -PI/2;
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; b.p.forEach(p => { x0 = Math.min(x0,p[0]); x1 = Math.max(x1,p[0]); z0 = Math.min(z0,p[1]); z1 = Math.max(z1,p[1]); });
+  const longRoof = !b.n && Math.hypot(x1-x0, z1-z0) > 110;   // the long covers over the stabling tracks: a roof, open underneath
+  const m = longRoof ? mesh(new T.ExtrudeGeometry(flatShape(b.p), {depth:.35, bevelEnabled:false}), mat.shedRoof, 'depot', depot, 0, 6.4, 0)
+    : mesh(new T.ExtrudeGeometry(flatShape(b.p), {depth:b.h, bevelEnabled:false}), solid ? mat.plat : mat.shed, 'depot', depot, 0, .1, 0); m.rotation.x = -PI/2;
+  if (longRoof) b.p.forEach((p, k) => { const q = b.p[(k+1) % b.p.length], L = Math.hypot(q[0]-p[0], q[1]-p[1]), n = Math.max(1, Math.round(L/24));
+    for (let j=0; j<n; j++) mesh(box(.35,6.3,.35), mat.shedFrame, 'depot', depot, p[0]+(q[0]-p[0])*j/n, 3.25, p[1]+(q[1]-p[1])*j/n); });
   if (b.n){ let cx = 0, cz = 0; b.p.forEach(p => { cx += p[0]; cz += p[1]; });
     const el = addLabel(b.n.replace('Rapid KL ', ''), ''); depLabels.push({el, pos:new T.Vector3(DEP.ox + cx/b.p.length, b.h + 4, DEP.oz + cz/b.p.length)}); }
 }
@@ -849,11 +874,12 @@ function setLayer(k, on){
 let sel = null;
 function restore(m){ m.emissive.setHex(m.userData.baseE); m.emissiveIntensity = m.userData.baseI; }
 function isDark(){ const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+let skyMode = 'auto', raining = false;
 function applyTheme(){
-  const dk = isDark(), sky = dk ? 0x0a1220 : 0xcfe2ee;
+  const dk = skyMode === 'auto' ? isDark() : skyMode === 'night', sky = dk ? 0x0a1220 : raining ? 0xaab6be : 0xcfe2ee;
   scene.background = new T.Color(sky); scene.fog.color.setHex(sky);
-  hemi.intensity = dk ? .42 : .62; hemi.color.setHex(dk ? 0x8ea6d0 : 0xffffff); hemi.groundColor.setHex(dk ? 0x1a2230 : 0x6b7a66);
-  sun.intensity = dk ? .28 : .55; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
+  hemi.intensity = dk ? .42 : raining ? .52 : .62; hemi.color.setHex(dk ? 0x8ea6d0 : 0xffffff); hemi.groundColor.setHex(dk ? 0x1a2230 : 0x6b7a66);
+  sun.intensity = dk ? .28 : raining ? .3 : .55; night = dk; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
   mat.ground.color.setHex(dk ? 0x1c2a25 : 0x9fb58f);
   bldMat.emissiveIntensity = dk ? .9 : 0; bldMat.color.setHex(dk ? 0x5a6470 : 0xffffff);
   const set = (m, e, i) => { m.userData.baseE = e; m.userData.baseI = i; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); };
@@ -863,6 +889,23 @@ function applyTheme(){
 }
 new MutationObserver(applyTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+
+/* ---------- weather ---------- */
+let night = false;
+const rain = (() => { const N = 1500, p = new Float32Array(N*12); let seed = 5; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  for (let k=0; k<N; k++){ const x = (rnd()-.5)*130, y = rnd()*60, z = (rnd()-.5)*130; p.set([x,y,z, x,y+.8,z, x,y+60,z, x,y+60.8,z], k*12); }   // short streaks, in two stacked copies so the fall loops without a jump
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(p, 3));
+  const m = new T.LineSegments(g, new T.LineBasicMaterial({color:0xdcebf5, transparent:true, opacity:.5, depthWrite:false})); m.frustumCulled = false; m.visible = false; scene.add(m); return m; })();
+const rainbow = new T.Group(); rainbow.visible = false; scene.add(rainbow);
+[0xd8343a, 0xf08a24, 0xf2d21f, 0x3fae49, 0x2f7fd8, 0x6a3fb0].forEach((c, k) => { const m = new T.Mesh(new T.TorusGeometry(330 - k*7, 3.5, 6, 64, PI),
+  new T.MeshBasicMaterial({color:c, transparent:true, opacity:.3, fog:false, depthWrite:false})); rainbow.add(m); });
+function updateWeather(time){
+  rain.visible = raining && !ov; rainbow.visible = raining && !night && !ov;
+  if (rain.visible) rain.position.set(camera.position.x, camera.position.y - 40 - (time*26 % 60), camera.position.z);
+  if (rainbow.visible){   // like a real one, it keeps its place in your view: ahead and a little to the right
+    camera.getWorldDirection(tmp); const an = Math.atan2(tmp.z, tmp.x) + .42;
+    rainbow.position.set(camera.position.x + Math.cos(an)*1100, -30, camera.position.z + Math.sin(an)*1100); rainbow.lookAt(camera.position.x, -30, camera.position.z); }
+}
 
 /* ---------- camera ---------- */
 const cam = {tgt:new T.Vector3(), off:new T.Vector3(), dist:46, pol:1.15, az:0, wDist:46, wPol:1.15, wAz:0, lastTh:null, cab:false};
@@ -914,7 +957,7 @@ function updateCamera(dt){
   ov = !cam.cab && cam.dist > 2600; ovg.visible = ov; detail.visible = !ov;
   if (stage.classList.contains('ov') !== ov){ stage.classList.toggle('ov', ov); $('hud').hidden = ov; }
   camera.near = clamp(far/250, .3, 40); camera.far = Math.max(3600, far*5); camera.updateProjectionMatrix();
-  scene.fog.near = Math.max(500, far*1.6); scene.fog.far = Math.max(1800, far*4.5);
+  { const wet = raining && !ov ? .5 : 1; scene.fog.near = Math.max(500, far*1.6)*wet; scene.fog.far = Math.max(1800, far*4.5)*wet; }
   if (cam.cab){
     const tr = trains[cur], s = sx(tr), c = tr.cars[s > 0 ? 0 : tr.n-1]; c.g.updateMatrixWorld();
     camera.position.set(s*(CAR/2 + NOSE + .4), 2.7, 0); c.g.localToWorld(camera.position);
@@ -1094,6 +1137,8 @@ function chooseTrain(i){ const man = trains[cur].manual; cur = i; $('which').val
 $('which').addEventListener('change', e => { chooseTrain(+e.target.value); if (focus && !focus.fixed) setFocus(focus); else setCam('follow'); });
 seg('mode', 'm', v => setManual(v === 'man'));
 seg('warp', 'x', v => { warp = +v; });
+seg('sky', 's', v => { skyMode = v; applyTheme(); });
+$('rain').addEventListener('change', e => { raining = e.target.checked; applyTheme(); });
 $('thr').addEventListener('input', e => { trains[cur].thr = e.target.value/100; });
 $('doorbtn').addEventListener('click', () => { const t = trains[cur]; if (!t.doorT) setDoorSide(t); t.doorT = t.doorT ? 0 : 1; });
 $('hold').addEventListener('change', e => { holdOther = e.target.checked; });
@@ -1201,7 +1246,7 @@ function frame(now){
   for (let n=0; n<warp; n++) trains.forEach(t => { t.hold = t === lead; stepTrain(t, Math.max(dt, 1e-4)); });
   trains.forEach(t => poseTrain(t, dt*warp, time)); updatePeople(dt*warp);
   if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
-  updateCamera(dt); updateHud();
+  updateCamera(dt); updateHud(); updateWeather(time);
   if ((lineT -= dt) < 0){ lineT = .5; updateLine(); }
   stations.forEach(st => { st.g.visible = !ov && st.pos.distanceTo(camera.position) < 1700;
     placeLabel(st.label, st.pos, !cam.cab && (!ov || st.x || st.term || cam.dist < 5000), ov ? 1e9 : 750, ov ? 'translate(12px,-50%)' : ''); });
