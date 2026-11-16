@@ -182,8 +182,8 @@ ol.line li.under button{border-left-style:dashed}
       <div class="partlist" id="pl-train"></div>
       <h3>On the track</h3>
       <div class="partlist" id="pl-track"></div>
-      <p class="note">A model of the Kelana Jaya Line (Line 5): all 37 stations in order, four-car trains at their real length and width, tunnels under the city centre. Every station sits at its real map position, with the whole map shrunk to about a third so a ride takes minutes. Between stations the track is a smooth curve joining them, not the surveyed alignment. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
-      <p class="note">Checked against: <a href="https://en.wikipedia.org/wiki/Kelana_Jaya_Line" target="_blank" rel="noopener">Wikipedia, Kelana Jaya Line</a> · <a href="https://en.wikipedia.org/wiki/Innovia_Metro" target="_blank" rel="noopener">Wikipedia, Innovia Metro</a> · <a href="https://www.railway-technology.com/projects/kuala-lumpur-driverless-metro/" target="_blank" rel="noopener">Railway Technology</a> · <a href="https://myrapid.com.my/bus-train/rapid-kl/kelana-jaya-line/" target="_blank" rel="noopener">MyRapid</a></p>
+      <p class="note">A model of the Kelana Jaya Line (Line 5): all 37 stations in order, four-car trains at their real length and width, tunnels under the city centre. Every station sits at its real map position, with the whole map shrunk to about a third so a ride takes minutes. Between stations the track follows the line as drawn on OpenStreetMap, smoothed. The Ampang and Sri Petaling lines work differently: they have drivers on board and ordinary spinning motors that turn the wheels.</p>
+      <p class="note">Checked against: <a href="https://en.wikipedia.org/wiki/Kelana_Jaya_Line" target="_blank" rel="noopener">Wikipedia, Kelana Jaya Line</a> · <a href="https://en.wikipedia.org/wiki/Innovia_Metro" target="_blank" rel="noopener">Wikipedia, Innovia Metro</a> · <a href="https://www.railway-technology.com/projects/kuala-lumpur-driverless-metro/" target="_blank" rel="noopener">Railway Technology</a> · <a href="https://myrapid.com.my/bus-train/rapid-kl/kelana-jaya-line/" target="_blank" rel="noopener">MyRapid</a> · <a href="https://iem-pmtd.blogspot.com/2011/05/technical-visit-to-rapid-kl-depot.html" target="_blank" rel="noopener">IEM visit to Subang Depot, 2010</a> · route shape © OpenStreetMap contributors</p>
     </div>
 
     <div class="pane" id="pane-how" role="tabpanel" hidden>
@@ -303,6 +303,8 @@ const ST = [
   {n:"Subang Alam", lon:101.572117, lat:3.009603, lv:'E', pl:'I'},
   {n:"Putra Heights", lon:101.575604, lat:2.996144, lv:'E', pl:'I', x:"Sri Petaling Line"},
 ];
+// Track heading at each station, and waypoints between stations (metres east and south of Gombak), from the line's OpenStreetMap route.
+const ROUTE = {"h":[1.577,0.8411,0.6785,1.3457,1.8659,1.5502,3.1342,-2.9767,3.0477,3.0872,2.9477,2.1145,2.1567,1.5813,2.6476,2.2172,1.9746,-3.0724,2.9598,-2.9764,3.0138,-2.5837,-2.9329,-2.9096,-2.6209,1.9598,1.1806,-3.1133,1.5804,1.567,1.6136,2.2774,1.5761,2.5665,1.5808,1.5441,0.5093],"vias":[[[-8,271],[-38,440],[-499,903],[-515,1018]],[[43,1642],[136,1863],[211,2210],[302,2376]],[[1030,2963],[1206,3095],[1324,3201]],[[1515,3867],[1709,4154],[1803,4421],[1811,4586],[1800,4719],[1757,4908],[1723,5044],[1593,5453],[1527,5640]],[[1198,6455]],[[1170,7319]],[],[[-302,7465],[-322,7609],[-346,7752]],[[-918,7858]],[[-1540,7959],[-1705,7782]],[],[[-2709,8629]],[[-3217,9239],[-3275,9518]],[[-3377,10282]],[[-4547,10971],[-4805,11269]],[[-5230,11826]],[[-5814,12758],[-5964,12853]],[[-6535,12887]],[[-7240,13031],[-7375,13319],[-7475,13554],[-7552,13652],[-8284,14097]],[[-9219,13985]],[[-10743,14153],[-11061,14117]],[[-11510,13837],[-12109,13398]],[],[[-13866,13031],[-14429,13293]],[[-15068,13125],[-15155,13208],[-15203,13316]],[[-15383,13850],[-15150,14448]],[[-14825,15280],[-14863,15477],[-14922,15767],[-14873,15930],[-14830,16044],[-14956,16196]],[[-15612,16308],[-15657,16415],[-15398,16901]],[],[[-15369,18491],[-15265,18611],[-14680,18622],[-14594,18694],[-14706,19118]],[[-14742,20066]],[[-15090,20474],[-15141,20578]],[[-15188,22019],[-15319,22121]],[[-16339,22220],[-16570,22195],[-16839,22236],[-16927,22356],[-16936,22757]],[[-16935,23664],[-16972,23995],[-16943,24254]],[[-16926,25048],[-16845,25358],[-16826,25787]]]};
 const NST = ST.length, SC = .35, STUB = 42, TAIL = 75, ds = 2;   // SC: the map is shrunk to about a third
 const LEVEL = {E:8.5, G:.45, U:-7}, HALFW = {I:5.6, S:2.25};
 const LVNAME = {E:'Elevated', G:'Ground level', U:'Underground'};
@@ -313,7 +315,7 @@ let LT, NS, X, Z, TH, K, YA, WA;
 (() => {
   const lat0 = ST[0].lat, lon0 = ST[0].lon, kx = Math.cos(3.15*PI/180)*111320*SC, kz = 110574*SC;
   const Pt = ST.map(s => [(s.lon-lon0)*kx, -(s.lat-lat0)*kz]);
-  const tan = Pt.map((p, i) => { const a = Pt[Math.max(0,i-1)], b = Pt[Math.min(NST-1,i+1)], l = Math.hypot(b[0]-a[0], b[1]-a[1]); return [(b[0]-a[0])/l, (b[1]-a[1])/l]; });
+  const tan = ROUTE.h.map(x => [Math.cos(x), Math.sin(x)]);
   const dense = [], dl = [0]; let len = 0;
   const add = p => { if (dense.length){ const q = dense[dense.length-1]; len += Math.hypot(p[0]-q[0], p[1]-q[1]); dl.push(len); } dense.push(p); };
   const line = (a, b) => { const n = Math.max(1, Math.ceil(Math.hypot(b[0]-a[0], b[1]-a[1])/.5)); for (let k=1; k<=n; k++) add([a[0]+(b[0]-a[0])*k/n, a[1]+(b[1]-a[1])*k/n]); };
@@ -322,9 +324,14 @@ let LT, NS, X, Z, TH, K, YA, WA;
   for (let i=0; i<NST; i++){
     line(dense[dense.length-1], Pt[i]); stU[i] = len; line(Pt[i], off(i, STUB));
     if (i < NST-1){
-      const a = off(i, STUB), b = off(i+1, -STUB), m = Math.hypot(b[0]-a[0], b[1]-a[1]), n = Math.ceil(m/.5);
-      for (let k=1; k<=n; k++){ const t = k/n, t2 = t*t, t3 = t2*t, h00 = 2*t3-3*t2+1, h10 = t3-2*t2+t, h01 = -2*t3+3*t2, h11 = t3-t2;
-        add([h00*a[0]+h10*m*tan[i][0]+h01*b[0]+h11*m*tan[i+1][0], h00*a[1]+h10*m*tan[i][1]+h01*b[1]+h11*m*tan[i+1][1]]); }
+      const pts = [off(i, STUB)].concat(ROUTE.vias[i].map(v => [v[0]*SC, v[1]*SC]), [off(i+1, -STUB)]), np = pts.length;
+      const dir = pts.map((p, k) => { if (k === 0) return tan[i]; if (k === np-1) return tan[i+1];
+        const a = pts[k-1], b = pts[k+1], l = Math.hypot(b[0]-a[0], b[1]-a[1]); return [(b[0]-a[0])/l, (b[1]-a[1])/l]; });
+      for (let s=0; s<np-1; s++){
+        const a = pts[s], b = pts[s+1], m = Math.hypot(b[0]-a[0], b[1]-a[1]), n = Math.ceil(m/.5), ta = dir[s], tb = dir[s+1];
+        for (let k=1; k<=n; k++){ const t = k/n, t2 = t*t, t3 = t2*t, h00 = 2*t3-3*t2+1, h10 = t3-2*t2+t, h01 = -2*t3+3*t2, h11 = t3-t2;
+          add([h00*a[0]+h10*m*ta[0]+h01*b[0]+h11*m*tb[0], h00*a[1]+h10*m*ta[1]+h01*b[1]+h11*m*tb[1]]); }
+      }
     }
   }
   line(dense[dense.length-1], off(NST-1, STUB+TAIL));
@@ -414,11 +421,13 @@ const rect = (l0,l1,y0,y1) => [[l0,y0],[l1,y0],[l1,y1],[l0,y1]];
 const side = sd => (u, c) => sd*c.w;
 const RAILS = [rect(.68,.755,0,.18), rect(-.755,-.68,0,.18)], REACT = rect(-.17,.17,.02,.14);
 const deckProf = c => { const h = c.w + 2.35; return [[-h,-.9],[h,-.9],[h,.3],[h-.25,.3],[h-.25,0],[-h+.25,0],[-h+.25,.3],[-h,.3]]; };
+const TUBE = Array.from({length:14}, (_, k) => { const an = -PI/2 + k*2*PI/14; return [2.55*Math.cos(an), 1.9 + 2.55*Math.sin(an)]; });
 const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h,5.4]]; };
 const CH = 65;
 for (let u0=0; u0<LT-1; u0+=CH){
   const u1 = Math.min(LT, u0+CH), cm = cAt((u0+u1)/2), lo = Math.min(cAt(u0).y, cAt(u1).y);
-  sweepM(u0, u1, [{prof:deckProf}], mat.deck, 'viaduct');
+  const under = lo < -.6, box_ = under && ST.some((s, k) => s.lv === 'U' && Math.abs(stU[k] - (u0+u1)/2) < 80);
+  if (!under || box_) sweepM(u0, u1, [{prof:deckProf}], mat.deck, 'viaduct');
   const rl = [], rc = [], pw = [];
   for (const sd of [-1,1]){
     for (const r of RAILS) rl.push({lat:side(sd), prof:r});
@@ -427,7 +436,7 @@ for (let u0=0; u0<LT-1; u0+=CH){
     pw.push({lat:side(sd), prof:rect(a, a+.07, .22, .30)}, {lat:side(sd), prof:rect(a, a+.07, .40, .48)});
   }
   sweepM(u0, u1, rl, mat.rail, 'rails'); sweepM(u0, u1, rc, mat.react, 'reaction'); sweepM(u0, u1, pw, mat.power, 'power');
-  if (lo < -.6) sweepM(u0, u1, [{prof:tunProf}], mat.tunnel, 'tunnel');
+  if (under) sweepM(u0, u1, box_ ? [{prof:tunProf}] : [-1,1].map(sd => ({lat:side(sd), prof:TUBE})), mat.tunnel, 'tunnel');
   if (cm.y > 4){
     const g = new T.Group(); g.position.set(cm.x, 0, cm.z); g.rotation.y = -cm.th; detail.add(g);
     mesh(new T.CylinderGeometry(.9,1.05,cm.y-1.7,14), mat.pier, 'viaduct', g, 0, (cm.y-1.7)/2, 0);
@@ -650,7 +659,8 @@ for (const z of [-21,-15,-9,-3,3,9,15,21]){
 }
 mesh(box(150,.3,54), mat.shed, 'depot', depot, 85, 9.2, 0);
 for (const z of [-27,27]){ mesh(box(150,9,.2), mat.shed, 'depot', depot, 85, 4.7, z); for (const x of [10,60,110,160]) mesh(box(.6,9,.6), mat.shedFrame, 'depot', depot, x, 4.7, z); }
-mesh(box(44,12,26), mat.plat, 'depot', depot, -110, 6, -45);
+mesh(box(44,12,26), mat.plat, 'depot', depot, -110, 6, -45); mesh(box(30,18,22), mat.plat, 'depot', depot, -55, 9, -45);
+{ const sm = new T.MeshBasicMaterial({map:signTex('Control Centre', 'OCC')}); mesh(new T.PlaneGeometry(14,2.6), sm, 'depot', depot, -55, 14, -33.9); }
 { const sm = new T.MeshBasicMaterial({map:signTex('Depoh Subang', 'KJ')}); mesh(new T.PlaneGeometry(16,3), sm, 'depot', depot, -110, 9, -31.9); }
 const parked = [[-9,62],[3,96],[15,44],[-21,-60]].map(p => {
   const lights = [new T.MeshBasicMaterial({color:0x40464c}), new T.MeshBasicMaterial({color:0x40464c})], g = new T.Group(); g.position.set(p[1], .3, p[0]); depot.add(g);
@@ -904,7 +914,7 @@ const INFO = {
     more:'Batteries keep the essentials alive, such as emergency lights, radio and door controls, if rail power drops out.', f:{car:1, off:[-1.8,.6,0], dist:6.5, pol:1.32, az:PI+.4, layers:{xray:true}}},
   shoes:{g:'train', name:'Collector shoes', what:'Sprung metal pads that reach sideways from the bogie and slide along the power rails, picking up electricity as the train moves.',
     more:'There are shoes on both sides of every bogie, so the train can pick up power whichever side the rail is on and coast across short gaps.', f:{car:1, off:[BG,.35,-1], dist:3.6, pol:1.2, az:PI+.3, layers:{xray:true}}},
-  power:{g:'track', name:'Power rails', what:'Electrified rails beside the track, fed with 750 volts of direct current from 14 substations along the line. This is why nobody walks on the track.',
+  power:{g:'track', name:'Power rails', what:'Electrified rails beside the track, fed with 750 volts of direct current. Power arrives from the national grid at Jelatek and Kerinchi and is stepped down through about 15 substations along the line. The rail is covered, and nobody walks on the track.',
     more:'This family of trains normally uses a pair of power rails, one out and one back, which is what the model shows. I could not confirm the exact arrangement on this line from published sources.', f:{car:0, off:[CAR/2+5,.35,-1.2], dist:5.5, pol:1.15, az:PI/2+1.1}},
   reaction:{g:'track', name:'Reaction rail', what:'The flat aluminium strip lying between the running rails. It is the other half of the motor, and it never moves.',
     more:'The magnetic wave from the slab on the train grips this strip from just above and pulls against it. The strip is just metal. No wires and no power in it at all.', f:{car:0, off:front, dist:6, pol:1.1, az:PI/2+.9}},
@@ -912,16 +922,16 @@ const INFO = {
     more:'They carry and guide the train. There are two tracks, and trains keep to the left, the same as Malaysian roads.', f:{car:0, off:front, dist:7, pol:1.05, az:PI/2+.6}},
   viaduct:{g:'track', name:'Viaduct', bm:'Jejambat', what:'Of the 37 stations, 31 are up on a concrete viaduct above the roads. Sri Rampai is the one exception outside the tunnels: it sits down at ground level.',
     more:'Being off the street is what makes driverless running practical. Nothing else shares the track, so a computer always knows what is on it.', f:{car:1, off:[0,-2,0], dist:42, pol:1.66, az:PI+.5}},
-  tunnel:{g:'track', name:'Tunnel', bm:'Terowong', what:'Under the city centre the line dives underground for five stations: Ampang Park, KLCC, Kampung Baru, Dang Wangi and Masjid Jamek.',
-    more:'The model cuts the ground away so you can watch the train inside. The ramps here are steeper than the real ones, because the map is shrunk.', f:{fixed:(() => { const c = cAt((stU[9]+stU[10])/2); return new T.Vector3(c.x, c.y+2, c.z); })(), dist:44, pol:1.3, az:1}},
+  tunnel:{g:'track', name:'Tunnel', bm:'Terowong', what:'Under the city centre the line dives underground for five stations. Each track gets its own bored tube, about 4.9 metres across inside, and the pair runs for a little over 4 kilometres.',
+    more:'The tubes open into a wider box at each station, with the platform between them. The model cuts the ground away so you can watch the trains inside. The ramps are steeper than the real ones, because the map is shrunk.', f:{fixed:(() => { const c = cAt((stU[9]+stU[10])/2); return new T.Vector3(c.x, c.y+2, c.z); })(), dist:44, pol:1.3, az:1}},
   station:{g:'track', name:'Station platform', bm:'Stesen', what:'The platform is level with the train floor. Fifteen stations have a platform on each side of the tracks. The other 22, including all five underground ones, have a single island in the middle, and the tracks spread apart to make room.',
     more:'The train stops at the same marks every time, so doors line up with the same spots on the platform. See the Line tab for all 37 stations.', f:stnFocus(stations[13])},
   psd:{g:'track', name:'Platform screen doors', what:'At the five underground stations a glass wall runs from floor to ceiling along the platform edge, with doors that open only when a train is stopped behind them.',
     more:'They keep people and air-conditioned air on the platform side. They only work because the train stops in exactly the same place every time.', f:stnFocus(stations[9], 20, 1.3)},
   depot:{g:'track', name:'Subang Depot', bm:'Depoh Subang', what:'The train home. Every train on the line starts and ends its day here. Trains are parked, washed, checked and repaired in the yard and sheds, then sent up the ramp to join the line.',
-    more:'The real depot is beside Lembah Subang station, which sits on top of the depot access ramp. No plan of the yard was available, so the layout here is invented to show the idea: stabling tracks, a see-through shed, a workshop, and one train being shunted.', f:depFocus},
+    more:'The real depot is beside Lembah Subang station, which sits on top of the depot access ramp. A report of an engineers\' visit in 2010 describes a large depot with a train maintenance workshop and the control centre for the whole line. It gives no plan of the yard, so the layout here is invented to show the idea.', f:depFocus},
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
-    more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
+    more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac. Operators have described it as allowing a train every 90 seconds, with a safety gap of 30 to 100 metres.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
 function selectPart(key, fly){
   if (sel && parts[sel]) parts[sel].forEach(restore);
@@ -1114,7 +1124,7 @@ function frame(now){
 }
 const tmp2 = new T.Vector3();
 requestAnimationFrame(frame);
-window.lrtDebug = {trains, stops, P, LEN, HALF, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
+window.lrtDebug = {K, LT, trains, stops, P, LEN, HALF, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
 })();
 </script>
 </body>
