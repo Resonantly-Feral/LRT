@@ -1,7 +1,7 @@
 import sys, wave
 import numpy as np
-U = '/root/.claude/uploads/5d779c4b-5220-572b-b253-d4a6a6c8c14d/'
-for name in ['741d3675-lrt_open_candidate.wav', '106fc738-lrt_close_candidate.wav', 'd28ee3c0-lrt_announcement_candidate.wav']:
+U = 'recordings/'   # folder holding the three clips
+for name in ['lrt_open_candidate.wav', 'lrt_close_candidate.wav', 'lrt_announcement_candidate.wav']:
     w = wave.open(U + name)
     sr, n, ch, sw = w.getframerate(), w.getnframes(), w.getnchannels(), w.getsampwidth()
     x = np.frombuffer(w.readframes(n), dtype={1: np.uint8, 2: np.int16, 4: np.int32}[sw]).astype(float)
@@ -9,7 +9,7 @@ for name in ['741d3675-lrt_open_candidate.wav', '106fc738-lrt_close_candidate.wa
         x -= 128
     x = x.reshape(-1, ch).mean(1)
     x /= (np.abs(x).max() or 1)
-    print('==', name.split('-', 1)[1], 'sr', sr, 'dur', round(n / sr, 2))
+    print('==', name, 'sr', sr, 'dur', round(n / sr, 2))
     N, H = 4096, 512
     win = np.hanning(N)
     fr = np.fft.rfftfreq(N, 1 / sr)
