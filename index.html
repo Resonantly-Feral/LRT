@@ -536,12 +536,12 @@ function latticeTex(){ const c = document.createElement('canvas'); c.width = 192
   for (let k=-128; k<=320; k+=48){ g.beginPath(); g.moveTo(k,0); g.lineTo(k+128,128); g.moveTo(k+128,0); g.lineTo(k,128); g.stroke(); }
   g.strokeRect(4,4,184,120); return new T.CanvasTexture(c); }
 mat.tile = M('station', 0xffffff, {roughness:.8, map:tileTex()});
-function ledTex(text){   // red dot-matrix departure board, as on the real platforms
-  const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d');
-  g.fillStyle = '#120606'; g.fillRect(0,0,512,64); g.fillStyle = '#ff3b2f'; g.font = '700 40px "Courier New", monospace'; g.textBaseline = 'middle'; g.fillText(text, 14, 34);
-  return new T.MeshBasicMaterial({map:new T.CanvasTexture(c)});
+function mkBoard(){   // red dot-matrix ticker, as on the real platforms; the text is set and scrolled by updateBoards
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 32; const tex = new T.CanvasTexture(c);
+  tex.wrapS = T.RepeatWrapping; tex.repeat.set(.25, 1); return {g:c.getContext('2d'), tex, mat:new T.MeshBasicMaterial({map:tex}), text:null};
 }
-const LED = {'-1':ledTex('ke PUTRA HEIGHTS'), '1':ledTex('ke GOMBAK')};   // the -1 side track runs towards Putra Heights
+function setBoard(b, text){ if (b.text === text) return; b.text = text; const g = b.g;
+  g.fillStyle = '#120606'; g.fillRect(0,0,1024,32); g.fillStyle = '#ff3b2f'; g.font = '700 22px "Courier New", monospace'; g.textBaseline = 'middle'; g.fillText(text, 12, 17, 930); b.tex.needsUpdate = true; }
 const dangerMat = new T.MeshBasicMaterial({map:textTex([['DILARANG MELINTAS TREK', '900 30px Arial'], ['DO NOT CROSS TRACK', '700 22px Arial'], ['BAHAYA  DANGER', '900 30px Arial'], ['TREK VOLTAN TINGGI', '900 28px Arial'], ['HIGH VOLTAGE TRACK', '700 22px Arial']], 512, 256, '#f2c200', '#1a1a1a', '')});
 function dangerSign(g){   // on the fence between the tracks at side-platform stations
   mesh(box(PL,1.15,.03), mat.mesh, 'station', g, 0, 1.5, 0); for (const y of [.95,2.08]) mesh(box(PL,.07,.07), mat.fence, 'station', g, 0, y, 0);
@@ -549,9 +549,10 @@ function dangerSign(g){   // on the fence between the tracks at side-platform st
   for (const s of [-1,1]){ const m = mesh(new T.PlaneGeometry(3.2,1.6), dangerMat, null, g, 12, 1.85, s*.04); if (s < 0) m.rotation.y = PI; }
 }
 function stationKit(g, w, lv, zBoard){
-  for (const sd of [-1,1]){
+  g.userData.boards = {};
+  for (const sd of [-1,1]){ const bd = g.userData.boards[sd] = mkBoard();
     for (const o of [-.47,.47]) mesh(box(PL+8,.07,.36), mat.panel, 'panels', g, 0, .05, sd*w + o);
-    for (const r of [PI/2,-PI/2]){ const m = mesh(new T.PlaneGeometry(5.6,.7), LED[sd], null, g, -14, lv === 'U' ? 3.5 : 4.3, sd*zBoard); m.rotation.y = r; m.position.x += r > 0 ? .03 : -.03; }
+    for (const r of [PI/2,-PI/2]){ const m = mesh(new T.PlaneGeometry(5.6,.7), bd.mat, null, g, -14, lv === 'U' ? 3.5 : 4.3, sd*zBoard); m.rotation.y = r; m.position.x += r > 0 ? .03 : -.03; }
   }
 }
 const stations = ST.map((d, i) => {
@@ -1190,6 +1191,19 @@ $('snd').addEventListener('click', () => {
 });
 let eggTaps = 0, eggAt = 0, eggUntil = 0;
 $('led').addEventListener('click', () => { const now = performance.now(); eggTaps = now - eggAt < 1500 ? eggTaps + 1 : 1; eggAt = now; if (eggTaps >= 5){ eggTaps = 0; eggUntil = now + 7000; } });
+let boardT = 0, boardScroll = 0;
+function updateBoards(dt, time){   // the -1 side track runs towards Putra Heights
+  boardScroll = (boardScroll + dt*.085) % 1; const redo = (boardT -= dt) < 0; if (redo) boardT = 1;
+  const now = new Date(), clock = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'), alt = Math.floor(time/9) % 2;
+  for (const st of stations){ if (!st.g.visible || st.pos.distanceTo(camera.position) > 500) continue;
+    for (const sd of [-1,1]){ const b = st.g.userData.boards[sd]; b.tex.offset.x = boardScroll; if (!redo && b.text !== null) continue;
+      const qT = sd < 0 ? st.u - uA : mod(P - (st.u - uA)), dest = sd < 0 ? 'PUTRA HEIGHTS' : 'GOMBAK'; let bd = 1e9, bt = null;
+      for (const t of trains){ let d = mod(qT - t.q); if (d > P-4) d = 0; if (d < bd){ bd = d; bt = t; } }
+      const m = Math.max(1, Math.ceil(bd/9/60)), n = bt ? bt.n : 4;
+      setBoard(b, bd < 4 && bt.state === 'dwell' ? clock + ' ke ' + dest
+        : m > 2 ? n + '-coach train to ' + dest + ' will be arriving in ' + m + ' minutes'
+        : alt ? 'Next train within ' + m + ' minute(s)' : n + ' coach train to ' + dest + ' will be arriving within ' + m + ' minute(s)'); } }
+}
 function updateLed(t){
   if (eggUntil > performance.now()){ setText($('led'), 'Ubuntu 14.04.2 LTS oem tty1 · ata2.00: failed command: READ DMA'); return; }
   const stop = stops[t.next], name = stop.st.name, at = t.state === 'dwell' || t.door > .02;
@@ -1197,10 +1211,9 @@ function updateLed(t){
   setText($('led'), msg);
   const key = (at ? 'a' : 'n') + t.next;
   if (key !== ledKey || t.i !== ledTrain){
-    if (soundOn && t.i === ledTrain){   // door beep first (from doorCues), then the chime, then the voice
-      const parts = at ? [['ms', name]].concat(stop.term && t.state === 'dwell' ? [['en', 'This is the last stop.']] : stop.st.x ? [['en', 'Interchange station for ' + stop.st.x + '.']] : [])
-        : [['ms', 'Stesen berikutnya, ' + name + '.'], ['en', 'Next station, ' + name + '.']];
-      const lead = at ? 2.3 : 2.7, len = playStationChime(lead);   // wait for the door cue to finish first
+    if (soundOn && t.i === ledTrain && !at){   // a few seconds after leaving: chime, then the next station. Arrival has no announcement.
+      const parts = [['ms', 'Stesen berikutnya, ' + name + '.'], ['en', 'Next station, ' + name + '.']].concat(stop.st.x ? [['en', 'Interchange station for ' + stop.st.x + '.']] : stop.term ? [['en', 'This is the last stop.']] : []);
+      const lead = 3, len = playStationChime(lead);
       clearTimeout(sayTimer); sayTimer = setTimeout(() => { if (soundOn) say(parts); }, (lead + len)*1000);
     }
     ledKey = key; ledTrain = t.i;
@@ -1246,7 +1259,7 @@ function frame(now){
   for (let n=0; n<warp; n++) trains.forEach(t => { t.hold = t === lead; stepTrain(t, Math.max(dt, 1e-4)); });
   trains.forEach(t => poseTrain(t, dt*warp, time)); updatePeople(dt*warp);
   if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
-  updateCamera(dt); updateHud(); updateWeather(time);
+  updateCamera(dt); updateHud(); updateWeather(time); updateBoards(dt, time);
   if ((lineT -= dt) < 0){ lineT = .5; updateLine(); }
   stations.forEach(st => { st.g.visible = !ov && st.pos.distanceTo(camera.position) < 1700;
     placeLabel(st.label, st.pos, !cam.cab && (!ov || st.x || st.term || cam.dist < 5000), ov ? 1e9 : 750, ov ? 'translate(12px,-50%)' : ''); });
