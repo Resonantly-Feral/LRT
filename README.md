@@ -33,6 +33,13 @@ Key ideas:
   reflections (`scene.environment` from a PMREM of the sky), soft sun shadows in a box that follows the camera, and ACES tone mapping.
   Turning it off drops the shadows, reflections, sky and tone mapping, for slower devices. Brightness, reflections, fill, sun and fog distance
   are in `LOOK`; `lrtDebug.LOOK` and `lrtDebug.applyTheme()` let you tune them live. Touch devices get a smaller shadow map.
+- **Buildings.** Still one instanced box per OpenStreetMap building, but `bldMat`'s shader draws windows from world position,
+  so floors and bays stay real-sized on any block, with a shopfront band at street level and random lit windows at night. Each
+  building has a kind (`aKind`): low houses (12 m or less) get pastel walls and, mostly, clay-tiled pitched roofs; concrete blocks
+  and glass towers (60 m and up, plus some from 35 m) get flat roofs with water tanks and aircon units. Clicking a roof picks its building.
+- **Trees.** About 8,000 rain trees, round trees and palms, in parks, along the main roads and between houses. A coarse occupancy
+  grid keeps them off the track (wider at stations), buildings, roads, rivers, lakes, other railways and the depot. Low-poly crowns
+  keep them cheap; they are in the `land` group, so they hide with it.
 - **`window.lrtDebug`** exposes the trains and a `step(n, dt)` function for testing without waiting.
 
 ## Where the facts come from
@@ -51,7 +58,8 @@ Map data © OpenStreetMap contributors.
 
 ## Known approximations
 
-- Building, road and river shapes are simplified; buildings are plain blocks.
+- Building, road and river shapes are simplified; buildings are blocks with drawn-on windows, and their colours, roof styles and rooftop kit are invented.
+- Trees are placed by rule, not from map data: none of them is a real, surveyed tree.
 - Merdeka 118's position is from memory, not from map data.
 - Train fleet numbers on the windscreens are invented.
 - Where trains park in the depot, and the ramp to the main line, are not from the map.
