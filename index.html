@@ -253,21 +253,21 @@ ol.line li.under button{border-left-style:dashed}
   </aside>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
+<script type="module">
+let THREE = null;
+try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.min.js'); } catch(e) {}
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
 const stage = $('stage');
 function fail(msg){ const d=document.createElement('div'); d.id='fail'; d.textContent=msg; stage.appendChild(d); }
-if (!window.THREE) { fail('The 3D library did not load. Check your connection and reload.'); return; }
+if (!THREE) { fail('The 3D library did not load. Check your connection and reload.'); return; }
 const T = THREE, PI = Math.PI;
 
 let renderer;
 try { renderer = new T.WebGLRenderer({antialias:true}); } catch(e) { fail('This browser could not start 3D graphics (WebGL).'); return; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-renderer.outputEncoding = T.sRGBEncoding;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap;
 stage.prepend(renderer.domElement);
 const canvas = renderer.domElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -399,11 +399,12 @@ function mesh(geo, mat, part, parent, x, y, z){
 const box = (w,h,d) => new T.BoxGeometry(w,h,d);
 const cyl = (r,h,n) => new T.CylinderGeometry(r,r,h,n||16);
 const DS = T.DoubleSide;
+const canvasTex = c => { const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; };
 function bandTex(){ const c = document.createElement('canvas'); c.width = 4; c.height = 128; const g = c.getContext('2d');
-  g.fillStyle = '#f2f4f6'; g.fillRect(0,0,4,128); g.fillStyle = '#1f33a8'; g.fillRect(0,0,4,77); g.fillStyle = '#d3202f'; g.fillRect(0,82,4,8); return new T.CanvasTexture(c); }
+  g.fillStyle = '#f2f4f6'; g.fillRect(0,0,4,128); g.fillStyle = '#1f33a8'; g.fillRect(0,0,4,77); g.fillStyle = '#d3202f'; g.fillRect(0,82,4,8); return canvasTex(c); }
 function textTex(lines, w, h, bg, fg, font){ const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
   if (bg){ g.fillStyle = bg; g.fillRect(0,0,w,h); } g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
-  lines.forEach((l, k) => { g.font = l[1] || font; g.fillText(l[0], w/2, h*(k+.5)/lines.length + 2, w-12); }); return new T.CanvasTexture(c); }
+  lines.forEach((l, k) => { g.font = l[1] || font; g.fillText(l[0], w/2, h*(k+.5)/lines.length + 2, w-12); }); return canvasTex(c); }
 const mat = {
   body: M('body', 0xf4f6f8, {roughness:.45}), blue: M('body', 0x1f33a8, {roughness:.4}), red: M('body', 0xd3202f),
   glass: M('body', 0x18232e, {roughness:.2, metalness:.3}), door: M('doors', 0xffffff, {roughness:.4, map:bandTex()}),
@@ -456,7 +457,7 @@ const tunProf = c => { const h = c.w + 3.6; return [[-h,-.9],[h,-.9],[h,5.4],[-h
 function tieTex(){ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');   // one baseplate with two clips, repeated along the rail
   g.clearRect(0,0,64,64); g.fillStyle = '#3d4146'; g.fillRect(5,14,54,36); g.fillStyle = '#6b4a3a'; g.fillRect(9,22,12,20); g.fillRect(43,22,12,20);
   g.fillStyle = '#9aa0a6'; g.fillRect(12,29,6,6); g.fillRect(46,29,6,6);
-  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; }
+  const t = canvasTex(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; }
 mat.tie = new T.MeshStandardMaterial({map:tieTex(), transparent:true, alphaTest:.4, roughness:.9, side:DS});
 function tieStrip(u0, u1){
   const n = Math.max(1, Math.ceil((u1-u0)/2.6)), pos = [], uv = [], P3 = (c, l) => [c.x + c.nx*l, c.y + .022, c.z + c.nz*l];
@@ -505,7 +506,7 @@ function winTex(lit){
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
   for (let y=0; y<4; y++) for (let x=0; x<4; x++){
     const on = rnd() > .45; g.fillStyle = lit ? (on ? '#ffd98a' : '#0a0d12') : '#5f7386'; g.fillRect(x*16+3, y*16+4, 10, 8); }
-  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3,6); return t;
+  const t = canvasTex(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(3,6); return t;
 }
 // Subang Depot from OpenStreetMap: yard tracks, building outlines and site boundary, in metres east and south of Lembah Subang station.
 const DEPOT = {"ways":[[-727.1,-368.4,-687.4,-346.8,-236.1,-106.2,-217.6,-100.1,-193.1,-93.0],[-93.3,-48.3,-131.7,-68.5,-168.7,-83.1,-196.8,-85.0,-238.0,-77.1,-254.4,-75.3,-272.1,-77.8,-301.6,-88.8,-344.0,-108.9,-371.7,-126.2,-628.8,-237.7,-665.9,-250.4,-767.5,-269.4,-798.6,-275.8,-809.6,-280.5,-823.3,-292.0,-831.9,-304.7,-836.2,-319.4,-835.4,-333.8,-831.4,-349.0,-823.0,-362.6,-808.4,-375.3,-793.3,-380.9,-765.1,-380.5],[-785.3,-386.9,-675.0,-352.0,-270.3,-135.5,-193.1,-93.0,-165.5,-85.6],[-301.6,-88.8,-338.8,-98.9],[-499.5,-109.5,-360.3,-50.5,-326.4,-40.3,-263.9,-40.7,-232.4,-39.6,-172.7,-28.6],[-560.0,-158.2,-382.2,-82.7,-336.9,-61.9,-306.9,-55.1,-232.4,-39.6],[-709.4,-245.3,-652.4,-232.3,-619.2,-220.0,-594.5,-204.4,-579.6,-188.3,-558.3,-174.7,-345.9,-84.3,-315.2,-78.0,-267.6,-69.2],[-97.9,6.2,-172.7,-28.6,-267.6,-69.2,-338.8,-98.9,-585.2,-205.6,-606.4,-221.5,-628.3,-230.3,-678.2,-244.4,-744.2,-258.4],[-406.1,154.0,-390.0,111.7,-387.3,87.5,-389.5,63.1,-399.0,41.7,-412.6,21.3,-428.1,7.5,-445.2,-3.4,-596.4,-70.4,-692.0,-111.0,-718.6,-127.1],[-744.2,-258.4,-819.6,-275.6,-837.9,-281.0,-850.0,-288.1,-861.4,-300.2,-868.4,-315.2,-870.0,-332.4,-867.0,-343.9,-862.2,-357.7],[-853.5,-209.2,-889.8,-235.1,-899.5,-245.8,-906.0,-259.3,-907.7,-273.7,-906.2,-288.1,-897.0,-305.8,-873.1,-341.3],[-718.6,-127.1,-852.3,-214.7,-880.1,-235.2,-892.2,-248.1,-899.1,-266.5,-898.0,-283.5,-873.1,-341.3,-853.0,-371.5,-844.5,-380.8,-832.7,-387.8,-818.8,-391.8,-802.7,-390.9,-785.3,-386.9],[-24.5,-5.4,11.4,18.3,43.4,32.4],[-522.4,-32.2,-594.6,-65.3,-694.3,-107.8,-720.4,-123.3],[-720.4,-123.3,-853.5,-209.2],[-522.4,-32.2,-550.5,-50.0],[-744.2,-258.4,-767.5,-269.4],[-678.2,-244.4,-654.0,-243.4,-628.8,-237.7],[-606.4,-221.5,-344.0,-108.9],[-606.3,-228.2,-571.5,-219.3,-474.9,-177.3,-440.7,-156.2],[-619.2,-220.0,-585.2,-205.6],[-345.9,-84.3,-375.5,-91.1,-557.0,-167.4],[-336.9,-61.9,-376.3,-70.5,-563.6,-151.0],[-326.4,-40.3,-352.7,-41.6,-374.0,-44.7,-391.3,-51.0,-504.3,-100.7],[-315.2,-78.0,-574.1,-192.2,-594.5,-204.4],[-207.0,-34.9,-237.3,-34.0,-262.5,-34.6],[-237.3,-34.0,-249.4,-26.0,-262.8,-23.9],[-148.8,-17.2,-130.9,-2.6,-126.5,1.6,-117.2,12.2,-108.8,18.3,-76.1,33.7],[-106.0,6.6,-129.3,5.0,-137.7,5.8,-148.3,5.4],[-98.3,9.4,-106.0,6.6,-146.7,-3.6],[-129.3,5.0,-147.5,1.9],[-25.6,-2.1,37.1,41.5,85.6,72.6,108.1,85.7],[-785.3,-386.9,-765.6,-384.4,-654.6,-349.8,-632.5,-340.4,-231.3,-126.7,-186.0,-101.7,-168.4,-90.9,-146.3,-82.9,-114.3,-63.8,-91.0,-50.7],[-675.0,-352.0,-652.5,-345.5,-634.8,-337.2,-142.3,-72.9],[-701.6,-360.4,-684.2,-351.7,-272.5,-130.6,-232.0,-109.8,-206.7,-100.6],[-748.4,-375.1,-273.0,-120.8,-253.8,-111.2,-236.1,-106.2],[-721.0,-360.6,-698.2,-342.4,-684.6,-330.7,-664.8,-307.5,-654.2,-297.2,-639.0,-286.9,-318.7,-115.5,-299.9,-108.3,-265.1,-104.9,-239.1,-101.6,-217.6,-100.1],[-684.6,-330.7,-663.2,-312.8,-647.3,-303.9,-285.0,-109.5,-265.1,-104.9],[-663.2,-312.8,-644.0,-297.5,-628.6,-288.4,-316.5,-119.3,-300.0,-112.3,-285.0,-109.5],[-701.5,-345.0,-679.5,-332.3,-666.9,-321.1,-649.2,-310.5,-287.1,-116.2,-262.0,-107.7,-239.1,-101.6],[-679.5,-332.3,-279.6,-118.1,-262.0,-107.7],[-614.5,-273.8,-600.4,-262.1,-568.7,-238.0,-404.3,-150.2,-390.1,-143.6,-364.2,-135.2,-337.3,-125.5],[-600.4,-262.1,-364.2,-135.2],[-568.7,-238.0,-623.1,-267.6,-786.9,-317.1],[-623.1,-267.6,-694.0,-305.6,-782.4,-332.7],[-646.7,-280.2,-785.0,-323.2],[-670.3,-292.9,-784.5,-327.2],[-313.6,-40.4,-356.7,-8.9,-382.3,-2.3,-395.6,-0.6,-409.3,-1.8,-431.4,-9.6],[-93.3,-48.3,-25.6,-2.1],[-91.0,-50.7,-24.5,-5.4],[-131.7,-68.5,-91.0,-50.7],[-134.3,-10.4,-118.9,-7.3,-109.0,-3.9,-95.6,1.7]],"bld":[{"n":"Administration","h":9,"p":[[-650.9,-187.9],[-679.6,-122.4],[-639.8,-105.2],[-611.1,-170.7]]},{"n":"Rolling Stock Department Workshop","h":9,"p":[[-564.5,-195.4],[-606.9,-99.2],[-590.5,-92.1],[-596.7,-78.1],[-530.3,-49.3],[-509.7,-96.1],[-422.8,-58.3],[-394.9,-121.7]]},{"n":"","h":9,"p":[[-775.3,-332.1],[-707.7,-312.6],[-711.2,-303.4],[-664.1,-288.0],[-666.8,-278.5],[-781.9,-313.5]]},{"n":"","h":9,"p":[[-693.3,-337.4],[-681.1,-354.0],[-639.1,-329.5],[-634.6,-337.7],[-235.9,-126.3],[-239.8,-118.7],[-270.3,-135.5],[-277.2,-125.1],[-272.7,-122.7],[-277.2,-114.7],[-295.0,-123.0],[-299.5,-114.4],[-316.2,-123.0],[-321.6,-114.4],[-403.6,-158.0],[-407.7,-149.4],[-561.9,-229.1],[-556.2,-238.2],[-640.3,-282.4],[-635.2,-291.8],[-651.3,-301.0],[-646.5,-311.1]]},{"n":"","h":8.0,"p":[[-320.9,-3.5],[-321.5,-39.6],[-268.2,-40.5],[-267.6,-4.4]]},{"n":"Rapid KL Track Vehicle Storage Building","h":8.0,"p":[[-239.2,-31.9],[-243.7,-11.2],[-207.2,-3.4],[-208.9,4.3],[-202.1,5.8],[-203.5,12.2],[-173.3,18.6],[-172.3,14.0],[-152.0,18.3],[-145.5,-11.7]]},{"n":"","h":9,"p":[[-92.7,-1.8],[-17.3,29.9],[-26.0,50.3],[-101.4,18.6]]},{"n":"","h":9,"p":[[-719.3,-255.6],[-717.4,-265.8],[-698.1,-262.3],[-697.7,-264.1],[-675.3,-260.0],[-677.6,-247.9]]},{"n":"","h":9,"p":[[-851.4,-212.4],[-778.7,-164.7],[-784.4,-156.0],[-857.2,-203.7]]},{"n":"Dewan Tan Sri Jamaludin Ibrahim","h":8.0,"p":[[-701.2,-229.4],[-655.5,-210.1],[-669.0,-178.8],[-708.6,-193.5],[-713.4,-205.9]]},{"n":"Menara Prasarana","h":52.0,"p":[[-763.6,-213.7],[-722.6,-229.5],[-704.2,-182.2],[-745.2,-166.4]]},{"n":"","h":9,"p":[[-847.5,-231.6],[-833.8,-264.6],[-760.0,-234.3],[-773.7,-201.3]]},{"n":"","h":9,"p":[[-377.4,-3.0],[-367.2,1.7],[-371.4,10.5],[-381.6,5.8]]},{"n":"","h":9,"p":[[-290.0,1.7],[-271.8,2.3],[-272.2,13.7],[-280.2,13.4],[-280.4,19.0],[-290.6,18.6]]},{"n":"","h":9,"p":[[-393.5,-23.7],[-379.8,-18.7],[-383.5,-8.7],[-397.2,-13.8]]},{"n":"","h":9,"p":[[-375.0,-40.3],[-351.7,-38.5],[-353.1,-21.7],[-376.3,-23.4]]},{"n":"","h":9,"p":[[-424.8,-34.4],[-415.3,-57.2],[-404.9,-52.9],[-414.5,-30.1]]},{"n":"","h":9,"p":[[-491.9,-66.1],[-437.6,-43.3],[-448.9,-16.7],[-503.2,-39.5]]},{"n":"","h":9,"p":[[-623.9,-105.0],[-615.0,-101.4],[-620.4,-88.4],[-629.3,-92.1]]},{"n":"Operations Control Centre","h":9,"p":[[-640.5,-210.4],[-611.4,-198.6],[-614.7,-190.6],[-603.4,-186.0],[-608.2,-174.4],[-648.6,-190.9]]},{"n":"","h":9,"p":[[-72.9,-30.5],[-79.0,-21.7],[-34.6,8.1],[-25.6,-4.8],[-44.0,-17.5],[-46.8,-13.3]]},{"n":"","h":9,"p":[[-84.8,-40.7],[-83.3,-42.7],[-48.6,-18.7],[-50.0,-16.7],[-79.6,-37.1]]},{"n":"Platform Lembah Subang","h":9,"p":[[-100.0,-40.5],[-84.7,-29.9],[-81.6,-34.3],[-79.6,-37.1],[-95.0,-47.7]]},{"n":"","h":9,"p":[[-81.6,-34.3],[-79.6,-37.1],[-72.7,-32.4],[-74.7,-29.6]]}],"poly":[[58.1,30.2],[59.1,40.0],[53.6,79.8],[45.2,83.7],[17.2,78.7],[-126.8,33.4],[-150.0,30.4],[-322.6,36.1],[-353.7,35.1],[-400.5,21.7],[-556.3,-40.2],[-709.8,-106.1],[-816.6,-179.8],[-851.2,-200.7],[-887.3,-218.4],[-899.4,-232.0],[-907.5,-247.6],[-911.3,-262.4],[-911.6,-280.9],[-908.2,-293.4],[-888.2,-332.0],[-848.8,-383.2],[-838.0,-389.5],[-794.8,-402.0],[-759.2,-398.1],[-621.2,-356.4],[-340.9,-202.5],[-148.2,-93.3],[-81.5,-61.2]],"park":[[-496.9,-263.2,0.4926,559],[-280.2,-146.9,0.4926,559],[-589.6,-295.0,0.4905,557],[-373.6,-179.6,0.4905,557],[-540.1,-279.5,0.4932,547],[-328.1,-165.5,0.4932,547],[-406.1,-192.0,0.4913,539],[-288.2,-78.1,-2.7362,449],[-469.7,-156.0,-2.7362,449]],"c":[-507,-155],"ax":0.397,"ext":[607,141]};
@@ -580,19 +581,19 @@ function signTex(name, code){
   g.fillStyle = '#1d3f94'; g.fillRect(0,0,640,120); g.fillStyle = '#c2185b'; g.fillRect(0,0,140,120);
   g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = '700 52px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(code, 70, 64);
   g.textAlign = 'left'; g.fillStyle = '#fff'; g.font = '700 62px "Barlow Condensed", "Arial Narrow", Arial'; g.fillText(name.toUpperCase(), 160, 65, 465);
-  return new T.CanvasTexture(c);
+  return canvasTex(c);
 }
 const PL = 76;
 function tileTex(){ const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d');
   g.fillStyle = '#e7e4d9'; g.fillRect(0,0,96,96); g.strokeStyle = '#bdb9ab'; g.lineWidth = 2; for (let k=0; k<=96; k+=32){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,96); g.moveTo(0,k); g.lineTo(96,k); g.stroke(); }
-  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(42, 3); return t; }
+  const t = canvasTex(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(42, 3); return t; }
 function latticeTex(){ const c = document.createElement('canvas'); c.width = 192; c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#8c9197'; g.fillRect(0,0,192,128); g.strokeStyle = '#e2b93b'; g.lineWidth = 9;
   for (let k=-128; k<=320; k+=48){ g.beginPath(); g.moveTo(k,0); g.lineTo(k+128,128); g.moveTo(k+128,0); g.lineTo(k,128); g.stroke(); }
-  g.strokeRect(4,4,184,120); return new T.CanvasTexture(c); }
+  g.strokeRect(4,4,184,120); return canvasTex(c); }
 mat.tile = M('station', 0xffffff, {roughness:.8, map:tileTex()});
 function mkBoard(){   // red dot-matrix ticker, as on the real platforms; the text is set and scrolled by updateBoards
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 32; const tex = new T.CanvasTexture(c);
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 32; const tex = canvasTex(c);
   tex.wrapS = T.RepeatWrapping; tex.repeat.set(.25, 1); return {g:c.getContext('2d'), tex, mat:new T.MeshBasicMaterial({map:tex}), text:null};
 }
 function setBoard(b, text){ if (b.text === text) return; b.text = text; const g = b.g;
@@ -935,7 +936,7 @@ function applyTheme(){
   const dk = skyMode === 'auto' ? isDark() : skyMode === 'night', sky = dk ? 0x0a1220 : raining ? 0xaab6be : 0xcfe2ee;
   scene.background = new T.Color(sky); scene.fog.color.setHex(sky);
   hemi.intensity = dk ? .42 : raining ? .52 : .62; hemi.color.setHex(dk ? 0x8ea6d0 : 0xffffff); hemi.groundColor.setHex(dk ? 0x1a2230 : 0x6b7a66);
-  sun.intensity = dk ? .28 : raining ? .3 : .55; night = dk; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
+  sun.intensity = dk ? .28 : raining ? .3 : .55; night = dk; hemi.intensity *= PI; sun.intensity *= PI; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
   mat.ground.color.setHex(dk ? 0x1c2a25 : lifelike ? 0x8f9e80 : 0x9fb58f);
   bldMat.emissiveIntensity = dk ? .9 : 0; bldMat.color.setHex(dk ? 0x5a6470 : 0xffffff);
   const set = (m, e, i) => { m.userData.baseE = e; m.userData.baseI = i; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); };
@@ -955,30 +956,19 @@ const skyMat = new T.ShaderMaterial({uniforms:skyU, side:T.BackSide, depthWrite:
   fragmentShader:'uniform vec3 top, hor, glow, sunDir; uniform float glowK; varying vec3 vD;\n' +
     'void main(){ float h = clamp(vD.y, -.2, 1.); vec3 c = mix(hor, top, pow(max(h, 0.), .55));\n' +
     '  float s = max(dot(normalize(vD), sunDir), 0.); c += glow*glowK*(pow(s, 8.)*.35 + pow(s, 400.)*1.2);\n' +
-    '  if (h < 0.) c = mix(hor, hor*.92, -h*5.); gl_FragColor = vec4(c, 1.);\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}'});
+    '  if (h < 0.) c = mix(hor, hor*.92, -h*5.); gl_FragColor = vec4(c, 1.);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}'});
 const skyDome = new T.Mesh(new T.SphereGeometry(3000, 32, 16), skyMat); skyDome.renderOrder = -100; skyDome.frustumCulled = false; scene.add(skyDome);
 const envScene = new T.Scene(), envDome = new T.Mesh(new T.SphereGeometry(100, 32, 16), skyMat); envScene.add(envDome);
 const LOOK = {exp:.85, env:.35, hemi:.7, sun:3.2, fog:2.5};
-// Colours in this file are written as ordinary screen hex. With lifelike light on, they are converted to linear light so they
-// show at their true depth instead of washed out; turning it off puts the originals back.
-function linMat(m, on){
-  if (!m || !m.color || m === skyMat) return; const cur = m.color.getHex(), src = m.userData.lin === cur ? m.userData.src : cur;
-  m.userData.src = src; m.color.setHex(src); if (on){ m.color.convertSRGBToLinear(); m.userData.lin = m.color.getHex(); } else m.userData.lin = undefined;
-  for (const t of [m.map, m.emissiveMap]) if (t && t.encoding !== (on ? T.sRGBEncoding : T.LinearEncoding)){ t.encoding = on ? T.sRGBEncoding : T.LinearEncoding; t.needsUpdate = true; m.needsUpdate = true; } }
-function linInst(im, on){ if (!im || !im.instanceColor) return; const a = im.instanceColor.array;
-  if (!im.userData.c0) im.userData.c0 = Float32Array.from(a); else if (im.userData.c0.length !== a.length) return;
-  const c0 = im.userData.c0; for (let i=0; i<a.length; i++) a[i] = on ? Math.pow(c0[i], 2.2) : c0[i]; im.instanceColor.needsUpdate = true; }
 const pmrem = new T.PMREMGenerator(renderer); let envRT = null, lifelike = true, lookDark = false;
 try { lifelike = localStorage.getItem('lrt-real') !== '0'; } catch(e) {}
 function updateLook(dk){
   lookDark = dk; const on = lifelike;
-  scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => linMat(m, on)); if (o.isInstancedMesh) linInst(o, on); });
   renderer.toneMapping = on ? T.ACESFilmicToneMapping : T.NoToneMapping; renderer.toneMappingExposure = LOOK.exp*(dk ? 1.1 : 1);
   skyDome.visible = on; sun.castShadow = on && !ov;
   const top = dk ? 0x050a18 : raining ? 0x8a97a2 : 0x5c95cf, hor = dk ? 0x16233a : raining ? 0xb4bec6 : 0xd6e6ef;
   skyU.top.value.setHex(top); skyU.hor.value.setHex(hor); skyU.glow.value.setHex(dk ? 0x6b7fa8 : 0xfff0d0); skyU.glowK.value = raining ? .15 : dk ? .3 : 1;
-  skyU.top.value.convertSRGBToLinear(); skyU.hor.value.convertSRGBToLinear(); skyU.glow.value.convertSRGBToLinear();
-  if (on){ scene.background = null; scene.fog.color.setHex(hor).convertSRGBToLinear(); }
+  if (on){ scene.background = null; scene.fog.color.setHex(hor); }
   for (const k in mat) if (mat[k].isMeshStandardMaterial) mat[k].envMapIntensity = LOOK.env*(dk ? .5 : raining ? .7 : 1);
   bldMat.envMapIntensity = LOOK.env*(dk ? .3 : .6);
   if (on){ if (envRT) envRT.dispose(); envRT = pmrem.fromScene(envScene, 0, .1, 200); scene.environment = envRT.texture; }
@@ -986,11 +976,11 @@ function updateLook(dk){
   if (on){ hemi.intensity *= LOOK.hemi*(dk ? 1.6 : 1); sun.intensity *= LOOK.sun*(dk ? .45 : 1); }
   for (const k in mat) if (mat[k].isMaterial) mat[k].needsUpdate = true; bldMat.needsUpdate = true; landMats.forEach(m => m.needsUpdate = true);
 }
-{ const s = sun.shadow; const sz = matchMedia('(pointer: coarse)').matches ? 1024 : 2048; s.mapSize.set(sz, sz); s.bias = -.0004; s.normalBias = .04; s.camera.near = 1; s.camera.far = 1600; }
+{ const s = sun.shadow; const sz = matchMedia('(pointer: coarse)').matches ? 1024 : 2048; s.mapSize.set(sz, sz); s.bias = -.0004; s.normalBias = .04; s.radius = 3; s.camera.near = 1; s.camera.far = 1600; }
 let shadowSeen = 0;
 function shadowFlags(){   // new meshes (trains built later, people) pick up shadow settings here
   let n = 0; scene.traverse(o => { n++; if (!(o.isMesh || o.isInstancedMesh) || o.userData.shd) return; o.userData.shd = 1;
-    const m = Array.isArray(o.material) ? o.material[0] : o.material; if (lifelike && m && m.userData.lin === undefined) linMat(m, true); if (!m || !m.isMeshStandardMaterial || o === skyDome) return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material; if (!m || !m.isMeshStandardMaterial || o === skyDome) return;
     o.receiveShadow = true; o.castShadow = !(m.transparent && (m.opacity < .9 || !m.depthWrite)) && !landMats.includes(m) && m !== mat.ground; });
   shadowSeen = n; }
 function updateSun(){

@@ -8,7 +8,9 @@ Made by someone who has ridden the line for ten years, with Claude.
 ## How it is built
 
 Everything is one file: `index.html`. No build step, no dependencies to install.
-It loads three.js r128 from cdnjs and holds the styles, markup, map data and code inline.
+It loads three.js 0.187 as an ES module from jsdelivr (`<script type="module">`) and holds the styles, markup, map data and code inline.
+Newer three.js manages colour itself: hex colours are read as ordinary screen colours, canvas textures are marked sRGB with `canvasTex`,
+and light strengths are multiplied by π to match how r128 used to light the scene.
 To change the model, edit `index.html` and push.
 
 The script inside is in sections, each with a `/* ---------- name ---------- */` header, in this order:
@@ -29,8 +31,7 @@ Key ideas:
   (`walkWords`), measured in the real city (map distance / `SC`), with compass directions.
 - **Lifelike light** (Controls tab, on by default, remembered per browser). Adds a graded sky dome with a sun glow, sky
   reflections (`scene.environment` from a PMREM of the sky), soft sun shadows in a box that follows the camera, and ACES tone mapping.
-  Because three.js r128 treats hex colours as linear, `linMat` / `linInst` convert every colour to linear light while it is on and
-  put the originals back when it is off, so colours show at their true depth. Brightness, reflections, fill, sun and fog distance
+  Turning it off drops the shadows, reflections, sky and tone mapping, for slower devices. Brightness, reflections, fill, sun and fog distance
   are in `LOOK`; `lrtDebug.LOOK` and `lrtDebug.applyTheme()` let you tune them live. Touch devices get a smaller shadow map.
 - **`window.lrtDebug`** exposes the trains and a `step(n, dt)` function for testing without waiting.
 
