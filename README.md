@@ -24,6 +24,9 @@ Key ideas:
   Two tracks, left-hand running, a crossover at each end.
 - **Trains.** `stepTrain` is the automatic driver: speed limits for curves, a moving-block gap to the train
   ahead, station stops. `poseTrain` places the cars and bogies.
+- **What's here.** Tap the ground (or empty map in Whole line) and `whatsHere(x, z)` fills the card: what the ground is, the
+  three nearest stations with interchanges, other railways, named buildings and landmarks. Distances are words, not numbers
+  (`walkWords`), measured in the real city (map distance / `SC`), with compass directions.
 - **`window.lrtDebug`** exposes the trains and a `step(n, dt)` function for testing without waiting.
 
 ## Where the facts come from

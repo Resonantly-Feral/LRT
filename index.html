@@ -77,6 +77,11 @@ h1 b{color:var(--accent);font-weight:700}
 .partlist button{border:1px solid var(--line);background:var(--panel);border-radius:3px;padding:5px 10px;font-size:14px}
 .partlist button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
 .note{font-size:13px;color:var(--muted)}
+#c-here h3{margin:6px 0 2px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+#c-here ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+#c-here li{font-size:14px}
+#c-here button{border:0;background:none;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+#c-here .far{color:var(--muted)}
 
 ol.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:s}
 ol.steps li{counter-increment:s}
@@ -181,8 +186,9 @@ ol.line li.under button{border-left-style:dashed}
       <div id="card" aria-live="polite">
         <h2 id="c-name">Pick a part</h2>
         <span class="bm" id="c-bm" hidden></span>
-        <p id="c-what">Tap anything on the train or the track, or choose from the list below. The camera flies to it and it glows.</p>
+        <p id="c-what">Tap anything on the train or the track, or choose from the list below. The camera flies to it and it glows. Tap the ground anywhere to see what is there.</p>
         <p id="c-more" class="note" hidden></p>
+        <div id="c-here" hidden></div>
       </div>
       <h3>On the train</h3>
       <div class="partlist" id="pl-train"></div>
@@ -519,7 +525,7 @@ const bldMat = new T.MeshStandardMaterial({map:winTex(false), emissiveMap:winTex
     o.position.set(x, h/2, z); o.rotation.y = -BLD[k*6+4]*PI/180; o.scale.set(w, h, dp); o.updateMatrix(); im.setMatrixAt(i, o.matrix);
     im.setColorAt(i, col.setHSL(.58, .08, .62 + ((k*37) % 30)/100)); bIdx.push(k); i++;
   }
-  im.count = i; im.frustumCulled = false; scene.add(im); bld = {im, idx:bIdx, was:-1, col:new T.Color()};
+  im.count = i; im.frustumCulled = false; scene.add(im); bld = {im, idx:bIdx, was:-1, col:new T.Color(), src:BLD};
   // the twin towers beside KLCC station, as a landmark
   const g = new T.Group(); g.position.set(TW[0], 0, TW[1]); g.rotation.y = -.6; g.scale.setScalar(.62); scene.add(g);
   for (const x of [-21,21]){
@@ -1052,15 +1058,16 @@ function pickAt(e){
     const near = (list, lim) => { let best = null, bd = lim; for (const m of list){ tmp.copy(m.position).project(camera);
       const d = Math.hypot((tmp.x-ndc.x)*r.width/2, (tmp.y-ndc.y)*r.height/2); if (d < bd){ bd = d; best = m; } } return best; };
     const hb = near(balls.filter(b => b.visible), 30), hd = hb ? null : near(dots, 26);
-    if (hb) rideTrain(hb.userData.train); else if (hd) flyTo(hd.userData.st);
+    if (hb) rideTrain(hb.userData.train); else if (hd) flyTo(hd.userData.st); else groundTap();
     return;
   }
   const skip = layers.xray ? ['body','nose','doors','hvac','psd'] : ['psd'];
   const hit = ray.intersectObjects(pick, false).find(h => h.object.visible && !skip.includes(h.object.userData.part));
   const hb = bld ? ray.intersectObject(bld.im, false)[0] : null;
   if (hb && (!hit || hb.distance < hit.distance)){ showBuilding(hb.instanceId); return; }
-  if (hit) selectPart(hit.object.userData.part, false);
+  if (hit) selectPart(hit.object.userData.part, false); else groundTap();
 }
+function groundTap(){ const v = new T.Vector3(); if (ray.ray.intersectPlane(new T.Plane(new T.Vector3(0,1,0), 0), v)) whatsHere(v.x, v.z); }
 
 /* ---------- the parts ---------- */
 const front = [CAR/2+5, .2, 0];
@@ -1114,7 +1121,7 @@ const INFO = {
   signal:{g:'track', name:'Signalling', what:'The part you cannot see. Each train constantly reports where it is. Computers reply with how far it may go. The glowing strip is that permission.',
     more:'The strip is always long enough for the train to stop inside it, so it stretches as the train speeds up. It can never overlap another train. This is called moving block, and it lets trains run close together safely. The real system is called SelTrac. Operators have described it as allowing a train every 90 seconds, with a safety gap of 30 to 100 metres.', f:{car:1, off:[20,2,0], dist:95, pol:.85, az:PI+.4, layers:{signal:true}}},
 };
-function clearBld(){ if (bld && bld.was >= 0){ bld.im.setColorAt(bld.was, bld.col); bld.im.instanceColor.needsUpdate = true; bld.was = -1; } }
+function clearBld(){ hideHere(); if (bld && bld.was >= 0){ bld.im.setColorAt(bld.was, bld.col); bld.im.instanceColor.needsUpdate = true; bld.was = -1; } }
 function showBuilding(id){
   if (sel && parts[sel]) parts[sel].forEach(restore); sel = null; clearBld();
   bld.im.getColorAt(id, bld.col); bld.was = id; bld.im.setColorAt(id, new T.Color(0xff2d78)); bld.im.instanceColor.needsUpdate = true;
@@ -1122,6 +1129,56 @@ function showBuilding(id){
   $('c-name').textContent = name || 'Unnamed building'; $('c-bm').hidden = true;
   $('c-what').textContent = name ? 'A real building beside the line, named and placed from OpenStreetMap.' : 'A real building beside the line. OpenStreetMap has its outline but no name for it.';
   $('c-more').hidden = false; $('c-more').textContent = 'Its position and footprint are real. The model draws it as a plain block, shrunk with the rest of the map.';
+  document.querySelectorAll('.partlist button').forEach(b => b.setAttribute('aria-pressed', 'false')); showTab('parts'); $('panel').classList.remove('min');
+}
+/* ---------- what's here: tap the ground and get a list, in words, of what is around that spot ---------- */
+const herePin = new T.Group(); herePin.visible = false; scene.add(herePin);
+{ const pm = new T.MeshBasicMaterial({color:0xff2d78}); mesh(new T.CylinderGeometry(.15,.15,10,8), pm, null, herePin, 0, 5, 0); mesh(new T.SphereGeometry(1.4,16,12), pm, null, herePin, 0, 11, 0); }
+function hideHere(){ herePin.visible = false; const h = $('c-here'); if (h){ h.hidden = true; h.textContent = ''; } }
+// how far, in words, for a distance in map units (the map is shrunk, so real metres = d / SC)
+function walkWords(d){ const m = d/SC; return m < 150 ? 'right here' : m < 400 ? 'very close' : m < 900 ? 'a short walk' : m < 1800 ? 'a long walk' : 'far from here'; }
+function dirWords(dx, dz){   // map x is east, z is south
+  const a = Math.atan2(-dz, dx), k = ((Math.round(a/(PI/4)) % 8) + 8) % 8;
+  return ['east','north-east','north','north-west','west','south-west','south','south-east'][k]; }
+function inPoly(x, z, p){ let c = false; for (let i=0, j=p.length-2; i<p.length; j=i, i+=2){ const xi = p[i]/10, zi = p[i+1]/10, xj = p[j]/10, zj = p[j+1]/10;
+  if ((zi > z) !== (zj > z) && x < (xj-xi)*(z-zi)/(zj-zi) + xi) c = !c; } return c; }
+function segDist(x, z, runs){ let best = 1e9; for (const r of runs) for (let k=0; k+3<r.length; k+=2){ const ax = r[k]/10, az = r[k+1]/10, bx = r[k+2]/10, bz = r[k+3]/10, dx = bx-ax, dz = bz-az, l2 = dx*dx+dz*dz || 1;
+  const t = clamp(((x-ax)*dx + (z-az)*dz)/l2, 0, 1); best = Math.min(best, Math.hypot(x-ax-dx*t, z-az-dz*t)); } return best; }
+const OTHER_NAME = {ktm:'KTM Komuter', erl:'the airport trains (ERL)', mono:'KL Monorail', amp:'the Ampang and Sri Petaling lines', pyl:'MRT Putrajaya Line', kjg:'MRT Kajang Line', sa:'the Shah Alam line'};
+function whatsHere(x, z){
+  if (sel && parts[sel]) parts[sel].forEach(restore); sel = null; clearBld();
+  herePin.position.set(x, 0, z); herePin.scale.setScalar(clamp(camera.position.distanceTo(herePin.position)/120, .6, 30)); herePin.visible = true;
+  // what the ground itself is
+  let ground = 'Open ground';
+  if (LAND.water.some(p => inPoly(x, z, p)) || segDist(x, z, LAND.river) < 6) ground = 'Water: a river or a lake';
+  else if (LAND.park.some(p => inPoly(x, z, p))) ground = 'A park or green space';
+  else { const big = segDist(x, z, [].concat(...['6','7','9','12','15'].map(w => LAND.road[w] || []))), small = segDist(x, z, LAND.road['5'] || []);
+    if (big < 5) ground = 'On a main road'; else if (small < 3) ground = 'On a side street'; else if (Math.min(big, small) < 30) ground = 'Beside the roads'; }
+  { const dx = x-DEP.x, dz = z-DEP.z; if (Math.abs(dx*DEP.ca + dz*DEP.sa) < DEPOT.ext[0] && Math.abs(-dx*DEP.sa + dz*DEP.ca) < DEPOT.ext[1]) ground = 'Inside Subang Depot, where the trains sleep'; }
+  // stations, nearest first
+  const sts = stations.map(st => ({st, d:Math.hypot(st.c.x-x, st.c.z-z)})).sort((a, b) => a.d - b.d).slice(0, 3);
+  // named buildings and landmarks within a long walk
+  const seen = new Set(), blds = [];
+  if (bld) for (let k=0; k<BNAME.length; k++){ const n = BNAME[k]; if (!n || seen.has(n) || /^[A-Za-z]{0,3}[-\s]?\d*[A-Za-z]?$/.test(n.trim())) continue; const d = Math.hypot(bld.src[k*6]/10-x, bld.src[k*6+1]/10-z);
+    if (d/SC < 1800){ seen.add(n); blds.push({n, d, k}); } }
+  blds.sort((a, b) => a.d - b.d); blds.length = Math.min(blds.length, 6);
+  const lmks = lmLabels.map(l => ({n:l.el.textContent, d:Math.hypot(l.pos.x-x, l.pos.z-z), dx:l.pos.x-x, dz:l.pos.z-z})).filter(l => l.d/SC < 4000).sort((a, b) => a.d - b.d);
+  const lines = []; { const got = new Map(); for (const L of OTHER){ const d = segDist(x, z, L.runs); if (!got.has(L.k) || d < got.get(L.k)) got.set(L.k, d); }
+    for (const [k, d] of got) if (d/SC < 1800) lines.push({n:OTHER_NAME[k] || k, d}); lines.sort((a, b) => a.d - b.d); }
+  // fill the card
+  $('c-name').textContent = "What's here"; $('c-bm').hidden = true; $('c-what').textContent = ground + '.';
+  $('c-more').hidden = false; $('c-more').textContent = 'Distances are in words, for the real city, not the shrunk map. Tap a name to go there.';
+  const h = $('c-here'); h.textContent = ''; h.hidden = false;
+  const group = (title, items) => { if (!items.length) return; const t = document.createElement('h3'); t.textContent = title; const ul = document.createElement('ul');
+    for (const it of items){ const li = document.createElement('li');
+      if (it.go){ const b = document.createElement('button'); b.textContent = it.n; b.addEventListener('click', it.go); li.appendChild(b); } else li.append(it.n);
+      const s = document.createElement('span'); s.className = 'far'; s.textContent = ' · ' + it.w; li.appendChild(s); ul.appendChild(li); }
+    h.append(t, ul); };
+  group('Kelana Jaya Line stations', sts.map(({st, d}) => ({n:st.name + ' (' + st.code + ')', w:walkWords(d) + (d/SC >= 150 ? ', to the ' + dirWords(st.c.x-x, st.c.z-z) : '') + (st.x ? '. Change here for ' + st.x : ''), go:() => flyTo(st)})));
+  group('Other railways nearby', lines.map(l => ({n:l.n, w:walkWords(l.d)})));
+  group('Named buildings', blds.map(b => { const id = bld.idx.indexOf(b.k); return {n:b.n, w:walkWords(b.d), go:id >= 0 ? () => showBuilding(id) : null}; }));
+  group('Landmarks you could see from here', lmks.map(l => ({n:l.n, w:walkWords(l.d) + (l.d/SC >= 150 ? ', to the ' + dirWords(l.dx, l.dz) : '')})));
+  if (!blds.length && !lines.length && sts[0].d/SC > 1800){ const p = document.createElement('p'); p.className = 'note'; p.textContent = 'Nothing the map knows the name of is close by.'; h.appendChild(p); }
   document.querySelectorAll('.partlist button').forEach(b => b.setAttribute('aria-pressed', 'false')); showTab('parts'); $('panel').classList.remove('min');
 }
 function selectPart(key, fly){
@@ -1366,7 +1423,7 @@ function frame(now){
 }
 const tmp2 = new T.Vector3();
 requestAnimationFrame(frame);
-window.lrtDebug = {K, LT, trains, stops, P, LEN, HALF, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
+window.lrtDebug = {K, LT, trains, stops, P, LEN, HALF, whatsHere, stations, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
 })();
 </script>
 </body>
