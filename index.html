@@ -242,6 +242,7 @@ ol.line li.under button{border-left-style:dashed}
       <div class="group">
         <h3>Sky</h3>
         <div class="seg" id="sky"><button data-s="auto" aria-pressed="true">Auto</button><button data-s="day" aria-pressed="false">Day</button><button data-s="night" aria-pressed="false">Night</button></div>
+        <label class="tog"><input type="checkbox" id="real" checked><span>Lifelike light<small>Sky, sun shadows and reflections. Turn off if it runs slowly on your device.</small></span></label>
         <label class="tog"><input type="checkbox" id="rain"><span>Rain<small>Wet rails make ordinary trains slip. This one is pushed by magnets, so it carries on. In daylight, look for the rainbow.</small></span></label>
       </div>
       <div class="group">
@@ -266,6 +267,7 @@ let renderer;
 try { renderer = new T.WebGLRenderer({antialias:true}); } catch(e) { fail('This browser could not start 3D graphics (WebGL).'); return; }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 renderer.outputEncoding = T.sRGBEncoding;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
 stage.prepend(renderer.domElement);
 const canvas = renderer.domElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -275,7 +277,7 @@ scene.fog = new T.Fog(0xffffff, 500, 1800);
 const camera = new T.PerspectiveCamera(50, 1, 0.3, 3600);
 const hemi = new T.HemisphereLight(0xffffff, 0x6b7a66, 1);
 const sun = new T.DirectionalLight(0xffffff, 1); sun.position.set(150, 260, 90);
-scene.add(hemi, sun);
+scene.add(hemi, sun, sun.target);
 
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
 const smooth = (a,b,x) => { const t = clamp((x-a)/(b-a), 0, 1); return t*t*(3-2*t); };
@@ -934,15 +936,72 @@ function applyTheme(){
   scene.background = new T.Color(sky); scene.fog.color.setHex(sky);
   hemi.intensity = dk ? .42 : raining ? .52 : .62; hemi.color.setHex(dk ? 0x8ea6d0 : 0xffffff); hemi.groundColor.setHex(dk ? 0x1a2230 : 0x6b7a66);
   sun.intensity = dk ? .28 : raining ? .3 : .55; night = dk; sun.color.setHex(dk ? 0xa9c0ff : 0xfff4e0);
-  mat.ground.color.setHex(dk ? 0x1c2a25 : 0x9fb58f);
+  mat.ground.color.setHex(dk ? 0x1c2a25 : lifelike ? 0x8f9e80 : 0x9fb58f);
   bldMat.emissiveIntensity = dk ? .9 : 0; bldMat.color.setHex(dk ? 0x5a6470 : 0xffffff);
   const set = (m, e, i) => { m.userData.baseE = e; m.userData.baseI = i; if (!sel || !(parts[sel]||[]).includes(m)) restore(m); };
   for (const m of [mat.glass, mat.screen]) set(m, dk ? 0xffdca0 : 0, dk ? .55 : 1);
   set(mat.roof, dk ? 0xfff0cc : 0, dk ? .25 : 1); set(mat.tower, dk ? 0xbfd4ff : 0, dk ? .35 : 1);
   set(mat.tunnel, dk ? 0x4a4436 : 0x2a3038, 1); set(mat.plat, dk ? 0x2a2a26 : 0, 1);
+  updateLook(dk);
 }
 new MutationObserver(applyTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+
+/* ---------- lifelike light: a graded sky, sky reflections, soft sun shadows and film-style tone mapping ---------- */
+const SUN_DIR = new T.Vector3(150, 260, 90).normalize();
+const skyU = {top:{value:new T.Color()}, hor:{value:new T.Color()}, glow:{value:new T.Color()}, sunDir:{value:SUN_DIR}, glowK:{value:1}};
+const skyMat = new T.ShaderMaterial({uniforms:skyU, side:T.BackSide, depthWrite:false, fog:false,
+  vertexShader:'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+  fragmentShader:'uniform vec3 top, hor, glow, sunDir; uniform float glowK; varying vec3 vD;\n' +
+    'void main(){ float h = clamp(vD.y, -.2, 1.); vec3 c = mix(hor, top, pow(max(h, 0.), .55));\n' +
+    '  float s = max(dot(normalize(vD), sunDir), 0.); c += glow*glowK*(pow(s, 8.)*.35 + pow(s, 400.)*1.2);\n' +
+    '  if (h < 0.) c = mix(hor, hor*.92, -h*5.); gl_FragColor = vec4(c, 1.);\n#include <tonemapping_fragment>\n#include <encodings_fragment>\n}'});
+const skyDome = new T.Mesh(new T.SphereGeometry(3000, 32, 16), skyMat); skyDome.renderOrder = -100; skyDome.frustumCulled = false; scene.add(skyDome);
+const envScene = new T.Scene(), envDome = new T.Mesh(new T.SphereGeometry(100, 32, 16), skyMat); envScene.add(envDome);
+const LOOK = {exp:.85, env:.35, hemi:.7, sun:3.2, fog:2.5};
+// Colours in this file are written as ordinary screen hex. With lifelike light on, they are converted to linear light so they
+// show at their true depth instead of washed out; turning it off puts the originals back.
+function linMat(m, on){
+  if (!m || !m.color || m === skyMat) return; const cur = m.color.getHex(), src = m.userData.lin === cur ? m.userData.src : cur;
+  m.userData.src = src; m.color.setHex(src); if (on){ m.color.convertSRGBToLinear(); m.userData.lin = m.color.getHex(); } else m.userData.lin = undefined;
+  for (const t of [m.map, m.emissiveMap]) if (t && t.encoding !== (on ? T.sRGBEncoding : T.LinearEncoding)){ t.encoding = on ? T.sRGBEncoding : T.LinearEncoding; t.needsUpdate = true; m.needsUpdate = true; } }
+function linInst(im, on){ if (!im || !im.instanceColor) return; const a = im.instanceColor.array;
+  if (!im.userData.c0) im.userData.c0 = Float32Array.from(a); else if (im.userData.c0.length !== a.length) return;
+  const c0 = im.userData.c0; for (let i=0; i<a.length; i++) a[i] = on ? Math.pow(c0[i], 2.2) : c0[i]; im.instanceColor.needsUpdate = true; }
+const pmrem = new T.PMREMGenerator(renderer); let envRT = null, lifelike = true, lookDark = false;
+try { lifelike = localStorage.getItem('lrt-real') !== '0'; } catch(e) {}
+function updateLook(dk){
+  lookDark = dk; const on = lifelike;
+  scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => linMat(m, on)); if (o.isInstancedMesh) linInst(o, on); });
+  renderer.toneMapping = on ? T.ACESFilmicToneMapping : T.NoToneMapping; renderer.toneMappingExposure = LOOK.exp*(dk ? 1.1 : 1);
+  skyDome.visible = on; sun.castShadow = on && !ov;
+  const top = dk ? 0x050a18 : raining ? 0x8a97a2 : 0x5c95cf, hor = dk ? 0x16233a : raining ? 0xb4bec6 : 0xd6e6ef;
+  skyU.top.value.setHex(top); skyU.hor.value.setHex(hor); skyU.glow.value.setHex(dk ? 0x6b7fa8 : 0xfff0d0); skyU.glowK.value = raining ? .15 : dk ? .3 : 1;
+  skyU.top.value.convertSRGBToLinear(); skyU.hor.value.convertSRGBToLinear(); skyU.glow.value.convertSRGBToLinear();
+  if (on){ scene.background = null; scene.fog.color.setHex(hor).convertSRGBToLinear(); }
+  for (const k in mat) if (mat[k].isMeshStandardMaterial) mat[k].envMapIntensity = LOOK.env*(dk ? .5 : raining ? .7 : 1);
+  bldMat.envMapIntensity = LOOK.env*(dk ? .3 : .6);
+  if (on){ if (envRT) envRT.dispose(); envRT = pmrem.fromScene(envScene, 0, .1, 200); scene.environment = envRT.texture; }
+  else scene.environment = null;
+  if (on){ hemi.intensity *= LOOK.hemi*(dk ? 1.6 : 1); sun.intensity *= LOOK.sun*(dk ? .45 : 1); }
+  for (const k in mat) if (mat[k].isMaterial) mat[k].needsUpdate = true; bldMat.needsUpdate = true; landMats.forEach(m => m.needsUpdate = true);
+}
+{ const s = sun.shadow; const sz = matchMedia('(pointer: coarse)').matches ? 1024 : 2048; s.mapSize.set(sz, sz); s.bias = -.0004; s.normalBias = .04; s.camera.near = 1; s.camera.far = 1600; }
+let shadowSeen = 0;
+function shadowFlags(){   // new meshes (trains built later, people) pick up shadow settings here
+  let n = 0; scene.traverse(o => { n++; if (!(o.isMesh || o.isInstancedMesh) || o.userData.shd) return; o.userData.shd = 1;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material; if (lifelike && m && m.userData.lin === undefined) linMat(m, true); if (!m || !m.isMeshStandardMaterial || o === skyDome) return;
+    o.receiveShadow = true; o.castShadow = !(m.transparent && (m.opacity < .9 || !m.depthWrite)) && !landMats.includes(m) && m !== mat.ground; });
+  shadowSeen = n; }
+function updateSun(){
+  if (!lifelike) return; const want = !ov; if (sun.castShadow !== want) sun.castShadow = want; skyDome.position.copy(camera.position);
+  if (!want) return; const r = clamp(cam.dist*1.4, 30, 420), c = sun.shadow.camera;
+  if (c.right !== r){ c.left = -r; c.right = r; c.top = r; c.bottom = -r; c.updateProjectionMatrix(); }
+  // snap the shadow box to its own texels so shadow edges do not shimmer as the camera moves
+  const step = 2*r/sun.shadow.mapSize.x; sun.target.position.set(Math.round(cam.tgt.x/step)*step, cam.tgt.y, Math.round(cam.tgt.z/step)*step);
+  sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 700); }
+$('real').checked = lifelike;
+$('real').addEventListener('change', e => { clearBld(); lifelike = e.target.checked; try { localStorage.setItem('lrt-real', lifelike ? '1' : '0'); } catch(_) {} applyTheme(); });
 
 /* ---------- weather ---------- */
 let night = false, poemUntil = 0;
@@ -1022,7 +1081,7 @@ function updateCamera(dt){
   ov = !cam.cab && cam.dist > 2600; ovg.visible = ov; detail.visible = !ov; land.visible = !ov;
   if (stage.classList.contains('ov') !== ov){ stage.classList.toggle('ov', ov); $('hud').hidden = ov; }
   camera.near = clamp(far/250, .3, 40); camera.far = Math.max(3600, far*5); camera.updateProjectionMatrix();
-  { const wet = raining && !ov ? .5 : 1; scene.fog.near = Math.max(500, far*1.6)*wet; scene.fog.far = Math.max(1800, far*4.5)*wet; }
+  { const wet = raining && !ov ? .5 : 1; const fk = lifelike ? LOOK.fog : 1; scene.fog.near = Math.max(500, far*1.6)*wet*fk; scene.fog.far = Math.max(1800, far*4.5)*wet*fk; }
   if (cam.inside){
     const tr = trains[cur], s = sx(tr), c = tr.cars[Math.min(1, tr.n-1)]; c.g.updateMatrixWorld();
     camera.position.set(-3.2*s, 2.35, .25*s); c.g.localToWorld(camera.position);
@@ -1394,7 +1453,7 @@ function updateHud(){
 /* ---------- loop ---------- */
 function resize(){ const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(stage); resize();
-applyTheme();
+shadowFlags(); applyTheme();
 { const p = TP(uOf(trains[0]), 1); camera.position.set(p.x, p.y+20, p.z); }
 trains.forEach(t => poseTrain(t, 0, 0));
 focus = CAMS.follow(); setFocus(focus); cam.off.set(0,0,0); cam.az = cam.wAz; cam.dist = cam.wDist; cam.pol = cam.wPol;
@@ -1408,7 +1467,7 @@ function frame(now){
   if (sel && parts[sel]){ const k = reduced ? .5 : .35 + .3*Math.sin(time*5); parts[sel].forEach(m => { m.emissive.setHex(0xff2d78); m.emissiveIntensity = k; }); }
   updateCamera(dt); updateHud(); updateWeather(time); updateBoards(dt, time); if (land.visible) updateCars(dt*warp);
   if (tourOn && performance.now() > tourT) tourStep();
-  if ((lineT -= dt) < 0){ lineT = .5; updateLine(); updateBoard(); }
+  if ((lineT -= dt) < 0){ lineT = .5; updateLine(); updateBoard(); shadowFlags(); }
   stations.forEach(st => { st.g.visible = !ov && st.pos.distanceTo(camera.position) < 1700;
     placeLabel(st.label, st.pos, !cam.cab && (!ov || st.x || st.term || cam.dist < 5000), ov ? 1e9 : 750, ov ? 'translate(12px,-50%)' : ''); });
   depot.visible = !ov && depPos.distanceTo(camera.position) < 2600;
@@ -1417,13 +1476,13 @@ function frame(now){
   lmLabels.forEach(l => placeLabel(l.el, l.pos, !cam.cab && !ov, 2400));
   placeLabel(depLabel, depPos, !cam.cab, ov ? 1e9 : 1500, ov ? 'translate(12px,-50%)' : '');
   if (ov) trains.forEach(t => { const b = balls[t.i]; b.position.set(t.pos.x, t.pos.y+70, t.pos.z); b.scale.setScalar(clamp(cam.dist/9000, .4, 2)*(t.i === cur ? 1.5 : 1)); b.material.color.setHex(t.i === cur ? 0xffb020 : 0x0a4fa3); });
-  renderer.render(scene, camera);
+  updateSun(); renderer.render(scene, camera);
   trains.forEach(t => { tmp2.set(t.pos.x, t.pos.y+(ov ? 70 : 4.6+explode*5), t.pos.z); setText(t.label, ov ? String(t.i+1) : 'Train ' + (t.i+1)); placeLabel(t.label, tmp2, ov || (layers.signal && !cam.cab && cam.dist > 20), ov ? 1e9 : 750, ov ? 'translate(calc(-100% - 12px),-50%)' : ''); });
   requestAnimationFrame(frame);
 }
 const tmp2 = new T.Vector3();
 requestAnimationFrame(frame);
-window.lrtDebug = {K, LT, trains, stops, P, LEN, HALF, whatsHere, stations, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
+window.lrtDebug = {LOOK, applyTheme, K, LT, trains, stops, P, LEN, HALF, whatsHere, stations, step:(n, dt) => { for (let i=0; i<n; i++) trains.forEach(t => stepTrain(t, dt)); }};
 })();
 </script>
 </body>

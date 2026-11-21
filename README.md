@@ -27,6 +27,11 @@ Key ideas:
 - **What's here.** Tap the ground (or empty map in Whole line) and `whatsHere(x, z)` fills the card: what the ground is, the
   three nearest stations with interchanges, other railways, named buildings and landmarks. Distances are words, not numbers
   (`walkWords`), measured in the real city (map distance / `SC`), with compass directions.
+- **Lifelike light** (Controls tab, on by default, remembered per browser). Adds a graded sky dome with a sun glow, sky
+  reflections (`scene.environment` from a PMREM of the sky), soft sun shadows in a box that follows the camera, and ACES tone mapping.
+  Because three.js r128 treats hex colours as linear, `linMat` / `linInst` convert every colour to linear light while it is on and
+  put the originals back when it is off, so colours show at their true depth. Brightness, reflections, fill, sun and fog distance
+  are in `LOOK`; `lrtDebug.LOOK` and `lrtDebug.applyTheme()` let you tune them live. Touch devices get a smaller shadow map.
 - **`window.lrtDebug`** exposes the trains and a `step(n, dt)` function for testing without waiting.
 
 ## Where the facts come from
@@ -60,7 +65,7 @@ Map data © OpenStreetMap contributors.
 
 ## Ideas not built yet
 
-Flyovers lifted off the ground · the station buildings in more detail · proper shapes for more landmarks ·
+A lighter, less washed-out depot in lifelike light · Flyovers lifted off the ground · the station buildings in more detail · proper shapes for more landmarks ·
 other lines' stations and trains · solid car walls with real window openings for the inside view ·
 keeping rivers visible in the underground cutaway.
 
